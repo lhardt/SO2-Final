@@ -1,0 +1,7 @@
+
+services:
+  so2-app:
+    pull_policy: never
+    build:
+      context: .
+    image: so2-app:latest
