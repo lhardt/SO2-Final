@@ -25,10 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - language: actions
-          build-mode: none
         - language: c-cpp
-          build-mode: autobuild
+          build-mode: manual
     steps:
     - uses: actions/checkout@v4
     - name: make
