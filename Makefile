@@ -41,8 +41,11 @@ run: $(TARGET)
 clean:
 	-rm $(OBJ) $(TARGET)
 
+folders:
+	-@mkdir lib inc obj bin 2>/dev/null | true 
+
 # The recipe for object files (i.e.  ./obj/XXX.o) depends on its corresponding ./src/XXX.c file.
-obj/%.o: src/%.cpp
+obj/%.o: src/%.cpp | folders
 	g++  $(CXXFLAGS)  $(SANITIZE_FLAGS) -c $(@:$(OBJDIR)/%.o=$(SRCDIR)/%.cpp) -o $@
 
 $(TARGET): $(OBJ)
