@@ -1,7 +1,10 @@
 #include <iostream>
 #include <cstdlib>
+#include "logger.h"
+
 
 int main(){
-    std::cout << "Hello, SO2-Final!\n";
-    return 0;
+	logger_open("logger.log");
+	log_info("Hello, SO2-Final!\n");
+	return 0;
 }
