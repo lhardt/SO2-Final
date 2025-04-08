@@ -59,7 +59,7 @@ endif
 # --------------------
 # Rules
 # --------------------
-all: $(TRG_MAIN) $(TRG_TEST)
+all: $(TRG_MAIN) 
 
 run: $(TARGET)
 	./run.sh
