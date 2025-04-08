@@ -73,13 +73,12 @@ folders:
 test: $(TRG_TEST)
 	./bin/test
 
-$(TRG_TEST): $(OBJ) | folders
-	g++  -o $@ $(OBJ_TEST) $(OBJ_OTHER) $(LIB) -lgtest $(CXXFLAGS)  $(SANITIZE_FLAGS) 
-
 obj/%.o: src/%.cpp | folders
 	g++  $(CXXFLAGS)  $(SANITIZE_FLAGS) -c $(@:$(OBJDIR)/%.o=$(SRCDIR)/%.cpp) -o $@
 
-$(TRG_MAIN): $(OBJ)
+
+
+$(TRG_MAIN): $(OBJ_MAIN) $(OBJ_OTHER)
 	g++ -o $@ $(@:$(BINDIR)/%=$(OBJDIR)/%_main.o) $(OBJ_OTHER) $(LIB) $(CXXFLAGS) $(SANITIZE_FLAGS)
 
 
