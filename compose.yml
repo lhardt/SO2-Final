@@ -1,7 +1,15 @@
-
 services:
-  so2-app:
+  server-app:
     pull_policy: never
     build:
       context: .
+    environment:
+      - TARGET=server
+    image: so2-app:latest 
+  client-app:
+    pull_policy: never
+    build:
+      context: .
+    environment:
+      - TARGET=client
     image: so2-app:latest
