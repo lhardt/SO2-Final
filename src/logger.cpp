@@ -42,6 +42,7 @@ void Logger::severe(const std::string& message, std::string filemeta){
 void Logger::log(const std::string& level, const std::string& message, std::string filemeta){
     std::string log_line = make_timestamp() + level.data() + " \t" + filemeta + " \t" + message + "\n";
     add_to_queue(log_line);
+    flush_queue();
 }
 
 void Logger::add_file_sink(const std::string& filename){
