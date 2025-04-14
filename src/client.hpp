@@ -4,9 +4,9 @@
 
 typedef class Client Client;
 
-void handleIoThread(Client * client);
-void handleFileThread(Client * client);
-void handleNetworkThread(Client * client);
+void g_handleIoThread(Client * client);
+void g_handleFileThread(Client * client);
+void g_handleNetworkThread(Client * client);
 
 class Client {
 public:
@@ -23,4 +23,6 @@ public:
     std::string client_name;
     std::string server_ip;
     std::string server_port;
+
+    // queue of commands and lock?
 };

@@ -10,15 +10,15 @@
 #include "client.hpp"
 
 
-void handleIoThread(Client * client){
+void g_handleIoThread(Client * client){
 	log_assert(client != NULL, "Null client!");
 	client->handleIoThread();
 }
-void handleFileThread(Client * client){
+void g_handleFileThread(Client * client){
 	log_assert(client != NULL, "Null client!");
 	client->handleFileThread();
 }
-void handleNetworkThread(Client * client){
+void g_handleNetworkThread(Client * client){
 	log_assert(client != NULL, "Null client!");
 	client->handleNetworkThread();
 }
@@ -26,14 +26,17 @@ void handleNetworkThread(Client * client){
 
 void Client::handleIoThread(){
 	log_info("Started IO Thread with ID %d ", std::this_thread::get_id());
+	// use std::getline and add to a queue of commands?
 }
 void Client::handleFileThread(){
 	log_info("Started File Thread with ID %d ", std::this_thread::get_id());
-
 }
 void Client::handleNetworkThread(){
 	log_info("Started Network Thread with ID %d ", std::this_thread::get_id());
-
+	// while( can't reach server ){
+	//   wait 100ms
+	// }
+	// check a queue of commands?
 }
 
 
@@ -42,9 +45,9 @@ Client::Client(std::string _client_name, std::string _server_ip, std::string _se
 
 	// TODO: log parameters
 
-	this->io_thread = std::thread(handleIoThread, this);
-	this->network_thread = std::thread(handleNetworkThread, this);
-	this->file_thread = std::thread(handleFileThread, this);
+	this->io_thread = std::thread(g_handleIoThread, this);
+	this->network_thread = std::thread(g_handleNetworkThread, this);
+	this->file_thread = std::thread(g_handleFileThread, this);
 
 	// If the main thread finishes, all the other threads are prematurely finished.
 	while(true){	
