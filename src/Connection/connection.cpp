@@ -1,22 +1,11 @@
 #include "connection.hpp"
 
-int init_connection(){
-    return socket;
-}
+int init_connection() { return 0; }
 
-bool upload_file(){
-    return;
-}
+bool upload_file() { return false; }
 
+bool download_file() { return false; }
 
-bool download_file(){
-    return;
-}
+bool download_isReady() { return false; }
 
-bool download_isReady(){
-    return;
-}
-
-bool upload_isReady(){
-    return;
-}
+bool upload_isReady() { return false; }

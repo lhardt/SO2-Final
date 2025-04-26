@@ -1,0 +1,3 @@
+[2025 04 26 12:18:15] INFO 	src/logger.cpp:22 	Initialized logger successfully!
+[2025 04 26 12:18:15] INFO 	src/client_main.cpp:71 	Hello from CLIENT, SO2-Final!
+

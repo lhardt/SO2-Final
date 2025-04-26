@@ -1,32 +1,29 @@
 #pragma once
-
-#include <vector>
 #include <iostream>
-#include <sys/socket.h> 
 #include <netinet/in.h>
 #include <string>
+#include <sys/socket.h>
+#include <vector>
 
 #include "Device.hpp"
 #include "FileManager.hpp"
 
+#define MAX_DEVICES 2
+
 using namespace std;
 
-class ClientManager{
+class ClientManager {
 
-    public:
-        ClientManager();
+public:
+  ClientManager(string username);
+  string getUsername();
+  void handle_new_connection(int socket);
 
-    private:
+private:
+  vector<Device *> devices;
+  FileManager *file_manager;
+  int max_devices;
+  string username;
 
-        vector<Device*> devices;
-        FileManager* file_manager;
-        int max_devices;
-        string username;
-
-        
-        void handle_new_connection(int socket);
-        string getUsername();
-        void handle_new_push(string file_path);
-        
-
-}
+  void handle_new_push(string file_path);
+};
