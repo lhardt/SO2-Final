@@ -24,5 +24,7 @@ public:
     std::string server_ip;
     std::string server_port;
 
+    bool is_exit = false;
+
     // queue of commands and lock?
 };
