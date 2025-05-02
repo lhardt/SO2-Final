@@ -35,8 +35,7 @@ void Client::handleIoThread(){
 		std::string command = get_first_word(user_input, argument_start);
 		std::string argument = trim_string(user_input.substr(argument_start));
 
-		std::string to_print = "Received command  <<" + command + ">> with argument <<" + argument + ">>\n";
-		log_info(to_print.c_str());
+		log_info("Received command  <<%s>> with argument <<%s>>\n", command.c_str(), argument.c_str());
 
 		// Do something with the received command.
 	}
@@ -77,9 +76,21 @@ Client::Client(std::string _client_name, std::string _server_ip, std::string _se
 
 int main(int argc, char** argv){
 	logger_open("logger.log");
-	log_info("Hello from CLIENT, SO2-Final!\n");
+	log_info("Hello from CLIENT, SO2-Final!");
 
-	// TODO: get info from argc/argv
-	Client client("", "", "");
-	return 0;
+	
+	if(argc == 4){
+		std::string username  = argv[1];
+		std::string server_ip  = argv[2];
+		std::string server_port  = argv[3];
+
+		log_info("Will start a client with User=[%s] Server=[%s:%s]", username.c_str(), server_ip.c_str(), server_port.c_str());
+
+		Client client("", "", "");
+		return 0;
+	}
+	
+	log_info("Did not receive parameters correctly! Expected\n\t %s <username> <server_ip_address> <port>", argv[0]);
+	return 1;
+
 }
