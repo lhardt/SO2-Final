@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <chrono>
 #include "logger.h"
+#include "utils.hpp"
 #include "client.hpp"
 
 
@@ -26,7 +27,19 @@ void g_handleNetworkThread(Client * client){
 
 void Client::handleIoThread(){
 	log_info("Started IO Thread with ID %d ", std::this_thread::get_id());
-	// use std::getline and add to a queue of commands?
+	while(true){
+		std::string user_input;
+		std::getline(std::cin, user_input);
+		
+		int argument_start = 0;
+		std::string command = get_first_word(user_input, argument_start);
+		std::string argument = trim_string(user_input.substr(argument_start));
+
+		std::string to_print = "Received command  <<" + command + ">> with argument <<" + argument + ">>\n";
+		log_info(to_print.c_str());
+
+		// Do something with the received command.
+	}
 }
 void Client::handleFileThread(){
 	log_info("Started File Thread with ID %d ", std::this_thread::get_id());
@@ -55,6 +68,10 @@ Client::Client(std::string _client_name, std::string _server_ip, std::string _se
 		std::chrono::milliseconds sleep_time{5000};
 		std::this_thread::sleep_for(sleep_time);
 	}
+
+	this->io_thread.join();
+	this->network_thread.join();
+	this->file_thread.join();
 }
 
 
