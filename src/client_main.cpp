@@ -35,20 +35,48 @@ void Client::handleIoThread(){
 		std::string command = get_first_word(user_input, argument_start);
 		std::string argument = trim_string(user_input.substr(argument_start));
 
-		log_info("Received command  <<%s>> with argument <<%s>>\n", command.c_str(), argument.c_str());
+		log_info("Received command  [%s] with argument [%s]", command.c_str(), argument.c_str());
 
 		// Do something with the received command.
+		if(command == "upload"){
+			// TODO
+		} else if(command == "download"){
+			// TODO
+		} else if(command == "list_server"){
+			// TODO
+		} else if(command == "list_client"){
+			// TODO
+		} else if(command == "get_sync_dir"){
+			// TODO
+		} else if(command == "exit"){
+			this->is_exit = true;
+			return;
+		} else {
+			log_info("Unrecognized command [%s]", command.c_str());
+		}
 	}
 }
 void Client::handleFileThread(){
 	log_info("Started File Thread with ID %d ", std::this_thread::get_id());
+	// check is_exit flag
+
+
+	log_info("File thread finishing");
 }
 void Client::handleNetworkThread(){
 	log_info("Started Network Thread with ID %d ", std::this_thread::get_id());
-	// while( can't reach server ){
-	//   wait 100ms
+	// while( ! this->is_exit && can't reach server ){
+	//   wait 100ms and try to reconnect
 	// }
-	// check a queue of commands?
+
+	while( ! this->is_exit ){
+		// check a queue of commands?
+
+		std::chrono::milliseconds sleep_time{500};
+		std::this_thread::sleep_for(sleep_time);
+	}
+
+	log_info("Network thread finising");
 }
 
 
@@ -60,13 +88,6 @@ Client::Client(std::string _client_name, std::string _server_ip, std::string _se
 	this->io_thread = std::thread(g_handleIoThread, this);
 	this->network_thread = std::thread(g_handleNetworkThread, this);
 	this->file_thread = std::thread(g_handleFileThread, this);
-
-	// If the main thread finishes, all the other threads are prematurely finished.
-	while(true){	
-		log_info("The main thread, like the Great Dark Beyond, lies asleep");
-		std::chrono::milliseconds sleep_time{5000};
-		std::this_thread::sleep_for(sleep_time);
-	}
 
 	this->io_thread.join();
 	this->network_thread.join();
