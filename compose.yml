@@ -5,6 +5,8 @@ services:
       context: .
     environment:
       - TARGET=server
+    ports:
+      - "4403:4403"
     image: so2-app:latest 
   client-app:
     pull_policy: never
@@ -13,3 +15,5 @@ services:
     environment:
       - TARGET=client
     image: so2-app:latest
+    ports:
+      - "4403:4403"
