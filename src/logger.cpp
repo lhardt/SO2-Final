@@ -40,6 +40,7 @@ void Logger::severe(const std::string& message, std::string filemeta){
 }
 
 void Logger::log(const std::string& level, const std::string& message, std::string filemeta){
+    const std::lock_guard<std::mutex> logging_mutex_holder(this->logging_mutex);
     std::string log_line = make_timestamp() + level.data() + " \t" + filemeta + " \t" + message + "\n";
     add_to_queue(log_line);
     flush_queue();

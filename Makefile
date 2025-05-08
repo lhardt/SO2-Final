@@ -45,7 +45,7 @@ TARGET    := $(TRG_MAIN) $(TRG_TEST)
 # Compilation Flags
 # --------------------
 # Address sanitizers are REALLY helpful, but they aren't available on MINGW.
-CXXFLAGS:= -O2 -Iinc -Wall -g -Wall -Wextra 
+CXXFLAGS:= -O2 -Iinc -Wall -g -Wall -Wextra -Wno-sign-compare
 SANITIZE_FLAGS = -fsanitize=undefined,address
 
 

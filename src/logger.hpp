@@ -9,6 +9,7 @@
 #include <deque>
 #include <vector> 
 #include <memory>
+#include <mutex>
 #include <cstdarg>
 
 typedef class Logger logger;
@@ -68,6 +69,8 @@ class Logger {
     std::vector<std::shared_ptr<std::ofstream>> sinks;
 
     std::deque<std::string> logging_queue;
+
+    std::mutex logging_mutex;
 };
 
 #endif /* LOGGER_H */

@@ -24,5 +24,10 @@ public:
     std::string server_ip;
     std::string server_port;
 
+<<<<<<< HEAD
+=======
+    bool is_exit = false;
+
+>>>>>>> main
     // queue of commands and lock?
 };
