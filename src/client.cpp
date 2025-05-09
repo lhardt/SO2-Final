@@ -46,7 +46,7 @@ void Client::handleNetworkThread(){
 
 	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(SERVER_PORT_IPV4); // or this->server_port
+    server_addr.sin_port = htons(std::atoi(this->server_port.c_str()));
 
 	int conversion_result = inet_pton(AF_INET, server_ip.c_str(), &server_addr.sin_addr);
 	if( conversion_result <= 0 ){
