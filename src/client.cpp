@@ -35,9 +35,6 @@ void Client::handleFileThread(){
 }
 void Client::handleNetworkThread(){
 	log_info("Started Network Thread with ID %d ", std::this_thread::get_id());
-	// while( can't reach server ){
-	//   wait 100ms
-	// }
 	
 	int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if(socket_fd < 0){
@@ -51,7 +48,7 @@ void Client::handleNetworkThread(){
 	server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(SERVER_PORT_IPV4); // or this->server_port
 
-	int conversion_result = inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr);
+	int conversion_result = inet_pton(AF_INET, server_ip.c_str(), &server_addr.sin_addr);
 	if( conversion_result <= 0 ){
 		// https://man7.org/linux/man-pages/man3/inet_pton.3.html
         int error = errno;
@@ -59,12 +56,20 @@ void Client::handleNetworkThread(){
         std::exit(1);
 	}
 
-	int connect_status = connect(socket_fd, (struct sockaddr*) &server_addr, sizeof(server_addr));
-	if( connect_status < 0 ){
-        int error = errno;
-        log_error("Could not CONNECT! result=%d errno=%d ", connect_status, error);
-        std::exit(1);
+	while(true){
+		log_info("Will sleep to give time for server to catch on!");
+		std::chrono::milliseconds sleep_time{500};
+		std::this_thread::sleep_for(sleep_time);
+
+		int connect_status = connect(socket_fd, (struct sockaddr*) &server_addr, sizeof(server_addr));
+		int error = errno;
+		if( connect_status >= 0 ){
+			break;
+		}
+		log_warn("Could not CONNECT! result=%d errno=%d ", connect_status, error);
 	}
+
+	log_info("Connected successfully!");
 
 	// check a queue of commands?
 }

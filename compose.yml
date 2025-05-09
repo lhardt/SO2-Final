@@ -15,5 +15,4 @@ services:
     environment:
       - TARGET=client
     image: so2-app:latest
-    ports:
-      - "4404:4404"
+    network_mode: "host"
