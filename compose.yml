@@ -15,4 +15,7 @@ services:
     environment:
       - TARGET=client
     image: so2-app:latest
+    # It is easier for the client app to connect
+    # to the server using the 127.0.0.1 IP. And for
+    # that we need the client to have host network access.
     network_mode: "host"
