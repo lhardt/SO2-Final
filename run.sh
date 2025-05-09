@@ -17,7 +17,7 @@ fi
 if [[ $opt == 'server' ]]; then
 	./bin/server
 elif [[ $opt == 'client' ]]; then
-	./bin/client
+	./bin/client username 127.0.0.1 4403
 else 
 	echo "Invalid option" $opt
 fi
