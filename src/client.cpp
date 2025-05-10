@@ -3,9 +3,20 @@
 #include <chrono>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/inotify.h>
+#include <unistd.h>
 #include "logger.hpp"
 #include "client.hpp"
 #include "constants.hpp"
+
+Client::Client(std::string _client_name, std::string _server_ip, std::string _server_port)
+    : client_name(_client_name), server_ip(_server_ip), server_port(_server_port)
+{
+    this->io_thread = std::thread(g_handleIoThread, this);
+    this->network_thread = std::thread(g_handleNetworkThread, this);
+    this->file_thread = std::thread(g_handleFileThread, this);
+
+}
 
 void g_handleIoThread(Client * client){
     log_assert(client != NULL, "Null client!");
@@ -27,7 +38,54 @@ void Client::handleIoThread(){
 }
 void Client::handleFileThread(){
     log_info("Started File Thread with ID %d ", std::this_thread::get_id());
+    static constexpr char* sync_dir = "sync_dir";
+    int inotifyFd = inotify_init1(IN_NONBLOCK);
+    if (inotifyFd < 0) {
+        log_error("Could not initiate inotify");
+        return;
+    }
+    int watchDescriptor = inotify_add_watch(inotifyFd, sync_dir, IN_CREATE | IN_MODIFY | IN_DELETE);
+    if (watchDescriptor < 0) {
+        log_error("Could not initiate watchDescriptor");
+        return;
+    }
+
+    size_t BUF_LEN = 1024 * (sizeof(inotify_event) + 16);
+    char buffer[BUF_LEN];
+
+    log_info("Monitorando a pasta: %s", sync_dir);
+
+    while (true) {
+        int length = read(inotifyFd, buffer, BUF_LEN);
+        if (length < 0) {
+            std::chrono::milliseconds sleep_time{500};
+            std::this_thread::sleep_for(sleep_time); // Evita busy waiting
+            continue;
+        }
+
+        int i = 0;
+        while (i < length) {
+            struct inotify_event* event = (struct inotify_event*)&buffer[i];
+
+            if (event->len > 0) {
+                std::string filepath = "./" + std::string(sync_dir) + "/" + event->name;
+
+                if (event->mask & IN_CREATE) {
+                    log_info("Arquivo adicionado: %s", filepath);
+                }
+                if (event->mask & IN_MODIFY) {
+                    log_info("Arquivo modificado: %s", filepath);
+                }
+                if (event->mask & IN_DELETE) {
+                    log_info("Arquivo removido: %s", filepath);
+                }
+            }
+
+            i += sizeof(struct inotify_event) + event->len;
+        }
+    }  
 }
+
 void Client::handleNetworkThread(){
     log_info("Started Network Thread with ID %d ", std::this_thread::get_id());
     
