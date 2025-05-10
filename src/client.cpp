@@ -72,12 +72,18 @@ void Client::handleFileThread(){
 
                 if (event->mask & IN_CREATE) {
                     log_info("Arquivo adicionado: %s", filepath);
+                    //FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA connections.cpp (ou algo assim)
+                    //uploadFile(socket, filepath)
                 }
                 if (event->mask & IN_MODIFY) {
                     log_info("Arquivo modificado: %s", filepath);
+                    //FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA connections.cpp (ou algo assim)
+                    //uploadFile(socket, filepath)
                 }
                 if (event->mask & IN_DELETE) {
                     log_info("Arquivo removido: %s", filepath);
+                    //FAZER FUNÇÃO QUE ENVIA NOME DO ARQUIVO A SER DELETADO EM UMA connections.cpp (ou algo assim)
+                    //deleteFile(socket, event->name)
                 }
             }
 
