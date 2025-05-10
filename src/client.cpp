@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/inotify.h>
+#include <netinet/in.h>
 #include <unistd.h>
 #include "logger.hpp"
 #include "client.hpp"
@@ -39,6 +40,32 @@ void Client::handleIoThread(){
 void Client::handleFileThread(){
     log_info("Started File Thread with ID %d ", std::this_thread::get_id());
     static constexpr char* sync_dir = "sync_dir";
+
+    //CRIAÇÃO DO SOCKET TCP, CREIO QUE DÁ PRA DEIXAR EM UM MÉTODO PARA SER USADO EM TODAS AS THREADS
+    //JÁ QUE CADA UMA VAI TER SEU PRÓPRIO SOCKET, TEM QUE VER O QUE DIFERENCIA UM SOCKET DO OUTRO
+    //SÃO PORTAS DIFERENTES? OU CADA THREAD FAZ SEU PRÓPRIO sock = socket() COM OS MESMOS PARAMETROS?
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        log_error("Erro ao criar socket");
+        return;
+    }
+
+    sockaddr_in server_addr{};
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(std::stoi(this->server_port));
+
+    if (inet_pton(AF_INET, this->server_ip.c_str(), &server_addr.sin_addr) <= 0) {
+        log_error("File thread | Invalid IP address: %s", this->server_ip.c_str());
+        close(sock);
+        return;
+    }
+
+    if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        log_error("File thread | Failed to connect to server: %s:%d", this->server_ip.c_str(), this->server_port);
+        close(sock);
+        return;
+    }
+
     int inotifyFd = inotify_init1(IN_NONBLOCK);
     if (inotifyFd < 0) {
         log_error("Could not initiate inotify");
@@ -53,7 +80,7 @@ void Client::handleFileThread(){
     size_t BUF_LEN = 1024 * (sizeof(inotify_event) + 16);
     char buffer[BUF_LEN];
 
-    log_info("Monitorando a pasta: %s", sync_dir);
+    log_info("Monitoring file: %s", sync_dir);
 
     while (true) {
         int length = read(inotifyFd, buffer, BUF_LEN);
@@ -73,17 +100,17 @@ void Client::handleFileThread(){
                 if (event->mask & IN_CREATE) {
                     log_info("Arquivo adicionado: %s", filepath);
                     //FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA connections.cpp (ou algo assim)
-                    //uploadFile(socket, filepath)
+                    //uploadFile(sock, filepath)
                 }
                 if (event->mask & IN_MODIFY) {
                     log_info("Arquivo modificado: %s", filepath);
                     //FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA connections.cpp (ou algo assim)
-                    //uploadFile(socket, filepath)
+                    //uploadFile(sock, filepath)
                 }
                 if (event->mask & IN_DELETE) {
                     log_info("Arquivo removido: %s", filepath);
                     //FAZER FUNÇÃO QUE ENVIA NOME DO ARQUIVO A SER DELETADO EM UMA connections.cpp (ou algo assim)
-                    //deleteFile(socket, event->name)
+                    //deleteFile(sock, event->name)
                 }
             }
 
