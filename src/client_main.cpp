@@ -3,11 +3,13 @@
  *
  * please only define the main() function here.
  */
+#include "Server/NetworkManager.hpp"
 #include "client.hpp"
 #include "logger.h"
 #include <arpa/inet.h>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <netinet/in.h>
 #include <string>
@@ -104,14 +106,24 @@ int main(int argc, char **argv) {
   send(sock, username.c_str(), username.size(), 0);
   std::cout << "Nome de usuário enviado: " << username << std::endl;
 
+  NetworkManager network_manager(sock);
+  packet p;
+  p.type = 1; // Exemplo de tipo
+  p.seqn = 1; // Exemplo de sequência
+  p._payload = "Hello from client";
+  p.length = strlen(p._payload);
+  p.total_size = HEADER_SIZE + p.length;
+
+  network_manager.sendPacket(&p);
+
   // Ler a resposta do servidor (se houver)
-  int valread = read(sock, buffer, sizeof(buffer));
-  if (valread > 0) {
-    std::cout << "Resposta do servidor: " << std::string(buffer, valread)
-              << std::endl;
-  } else {
-    std::cout << "Nenhuma resposta do servidor" << std::endl;
-  }
+  // int valread = read(sock, buffer, sizeof(buffer));
+  // if (valread > 0) {
+  //   std::cout << "Resposta do servidor: " << std::string(buffer, valread)
+  //             << std::endl;
+  // } else {
+  //   std::cout << "Nenhuma resposta do servidor" << std::endl;
+  // }
 
   // Fechar o socket
   close(sock);
