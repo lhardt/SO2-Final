@@ -50,4 +50,5 @@ public:
 
 private:
   int socket_fd;
+  bool isPacketValid(const packet &pkt);
 };

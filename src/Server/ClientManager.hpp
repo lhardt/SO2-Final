@@ -13,6 +13,8 @@
 
 using namespace std;
 
+class Device;
+
 class ClientManager {
 
 public:

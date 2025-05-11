@@ -15,6 +15,9 @@ void NetworkManager::sendPacket(packet *p) {
   if (socket_fd == -1) {
     throw std::runtime_error("Socket not initialized");
   }
+  if (!isPacketValid(*p)) {
+    throw std::runtime_error("Invalid packet");
+  }
   size_t payload_length = p->length;
   size_t buffer_size = HEADER_SIZE + payload_length;
   std::unique_ptr<char[]> buffer(new char[buffer_size]);
@@ -49,6 +52,7 @@ void NetworkManager::sendPacket(uint16_t type, uint16_t seqn,
 
   // Envia o pacote
   sendPacket(&pkt);
+  std::cout << "Pacote enviado: " << pkt._payload << std::endl;
 
   // Libera a memória do payload
   delete[] pkt._payload;
@@ -59,6 +63,20 @@ void NetworkManager::checkSocketInitialized() {
   if (socket_fd == -1) {
     throw std::runtime_error("Socket not initialized");
   }
+}
+
+bool NetworkManager::isPacketValid(const packet &pkt) {
+  // Verifica se o tamanho total do pacote é válido
+  if (pkt.total_size < HEADER_SIZE || pkt.length > MAX_PACKET_SIZE) {
+    return false;
+  }
+
+  // Verifica se o payload é nulo quando o comprimento é zero
+  if (pkt.length == 0 && pkt._payload != nullptr) {
+    return false;
+  }
+
+  return true;
 }
 
 std::unique_ptr<char[]> NetworkManager::receiveHeader() {

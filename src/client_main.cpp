@@ -117,6 +117,7 @@ int main(int argc, char **argv) {
   p.total_size = HEADER_SIZE + p.length;
 
   network_manager.sendPacket(&p);
+
   packet response = network_manager.receivePacket();
   std::cout << "Resposta recebida do servidor: " << response._payload
             << std::endl;
@@ -141,20 +142,38 @@ int main(int argc, char **argv) {
   }
   std::cout << "Conectado ao servidor na porta " << port << "!" << std::endl;
 
+  // espera mais um PORT <port>
+  packet response2 = network_manager.receivePacket();
+  std::cout << "Resposta recebida do servidor: " << response2._payload
+            << std::endl;
+  // resposta é PORT <port>
+  // pega o port e se conecta
+  std::string port_str3(response2._payload);
+  std::string port_str4 = port_str3.substr(5);
+  int port2 = std::stoi(port_str4);
+  std::cout << "Porta recebida do servidor: " << port2 << std::endl;
+  // Conectar ao servidor na porta recebida
+  int sock3 = socket(AF_INET, SOCK_STREAM, 0);
+  if (sock3 < 0) {
+    std::cerr << "Erro ao criar o socket" << std::endl;
+    return -1;
+  }
+  serv_addr.sin_port = htons(port2);
+  // Conectar ao servidor
+  if (connect(sock3, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    std::cerr << "Falha ao conectar ao servidor" << std::endl;
+    return -1;
+  }
+  std::cout << "Conectado ao servidor na porta " << port2 << "!" << std::endl;
+
   NetworkManager network_manager2(sock2);
+  NetworkManager network_manager3(sock3);
 
-  // enviar algo na nova conexão
-  std::string payload2 = "Hello from client on new connection";
-  packet p2;
-  p2.type = 1;
-  p2.seqn = 1;
-  p2._payload = new char[payload2.size() + 1]; // +1 for null terminator
-  std::strcpy(p2._payload, payload2.c_str());
-  p2.length = payload2.size();
-  p2.total_size = HEADER_SIZE + p2.length;
+  std::cout << "Mandando pacote PORT " << port << std::endl;
+  network_manager2.sendPacket(CMD, 1, "PORT " + std::to_string(port));
+  std::cout << "Mandando pacote PORT " << port2 << std::endl;
+  network_manager3.sendPacket(CMD, 1, "PORT " + std::to_string(port2));
 
-  std::cout << "Mandando pacote na nova conexão" << std::endl;
-  network_manager2.sendPacket(&p2);
   // Fechar o socket
   close(sock);
   close(sock2);

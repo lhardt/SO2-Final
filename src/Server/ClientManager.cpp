@@ -3,15 +3,16 @@
 
 ClientManager::ClientManager(string username)
     : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {}
-void ClientManager::handle_new_connection(int socket) {
-  // verifica se ja fechou o limite de dispositivos
+
+void ClientManager::handle_new_connection(
+    int socket) { // verifica se ja fechou o limite de dispositivos
   if (devices.size() >= max_devices) {
     // fecha a conexao
     return;
   }
 
   // cria um novo dispositivo
-  Device *device = new Device(socket);
+  Device *device = new Device(socket, this);
   devices.push_back(device);
 }
 
