@@ -1,4 +1,5 @@
 #pragma once
+#include "NetworkManager.hpp"
 #include <iostream>
 #include <netinet/in.h>
 #include <string>
@@ -18,6 +19,7 @@ public:
   ClientManager(string username);
   string getUsername();
   void handle_new_connection(int socket);
+  void removeDevice(Device *device);
 
 private:
   vector<Device *> devices;

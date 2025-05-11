@@ -95,54 +95,15 @@ void Server::run() {
     }
     string username(buffer, valread);
 
-    std::cout << "Criando um novo network_manager" << std::endl;
-
-    // cria um networkManager
-    NetworkManager *network_manager = new NetworkManager(new_socket_fd);
-
-    packet p = network_manager->receivePacket();
-    std::cout << "Pacote recebido: " << std::endl;
-    std::cout << "Type: " << p.type << std::endl;
-    std::cout << "Seqn: " << p.seqn << std::endl;
-    std::cout << "Total size: " << p.total_size << std::endl;
-    std::cout << "Length: " << p.length << std::endl;
-    std::cout << "Payload: " << p._payload << std::endl;
-
-    // packet *p = new packet;
-    // const char *payload = "Hello from server\0";
-    // p->type = 0;
-    // p->seqn = 0;
-    // p->_payload = payload;
-    // p->length = strlen(payload);
-    // p->total_size = HEADER_SIZE + p->length;
-    //
-    // std::cout << "Pacote a ser enviado: " << std::endl;
-    // std::cout << "Type: " << p->type << std::endl;
-    // std::cout << "Seqn: " << p->seqn << std::endl;
-    // std::cout << "Total size: " << p->total_size << std::endl;
-    // std::cout << "Length: " << p->length << std::endl;
-    // std::cout << "Payload: " << p->_payload << std::endl;
-    //
-    // network_manager->serializePacket(*p, buffer, p->total_size);
-    // packet received_packet =
-    //     network_manager->deserializePacket(buffer, p->total_size);
-    //
-    // std::cout << "Pacote recebido: " << std::endl;
-    // std::cout << "Type: " << received_packet.type << std::endl;
-    // std::cout << "Seqn: " << received_packet.seqn << std::endl;
-    // std::cout << "Total size: " << received_packet.total_size << std::endl;
-    // std::cout << "Length: " << received_packet.length << std::endl;
-    // std::cout << "Payload: " << received_packet._payload << std::endl;
-
-    // if (ClientManager *manager = clientExists(username)) {
-    //   // Se o cliente já existe, entrega o socket para o manager
-    //   cout << "Cliente já existe, entregando socket para o manager..." <<
-    //   endl; deliverToManager(manager, new_socket_fd);
-    // } else {
-    //   // Se o cliente não existe, cria um novo manager e entrega o socket
-    //   cout << "Criando novo client manager..." << endl;
-    //   createNewManager(username, new_socket_fd);
-    // }
+    if (ClientManager *manager = clientExists(username)) {
+      // Se o cliente já existe, entrega o socket para o manager
+      cout << "Cliente já existe, entregando socket para o manager..." << endl;
+      deliverToManager(manager, new_socket_fd);
+    } else {
+      // Se o cliente não existe, cria um novo manager e entrega o socket
+      cout << "Criando novo client manager..." << endl;
+      createNewManager(username, new_socket_fd);
+    }
   }
 }
 

@@ -14,7 +14,14 @@ typedef struct packet {
   uint16_t seqn;
   uint32_t total_size;
   uint16_t length;
-  const char *_payload;
+  char *_payload;
+
+  ~packet() {
+    if (_payload) {
+      delete[] _payload;
+      _payload = nullptr;
+    }
+  }
 } packet;
 
 static constexpr size_t HEADER_SIZE = sizeof(uint16_t)   /* type */
@@ -28,6 +35,7 @@ public:
   NetworkManager(int socket_fd);
 
   void sendPacket(packet *p);
+  void sendPacket(uint16_t type, uint16_t seqn, const std::string &payload);
   packet receivePacket();
 
   void serializePacket(const packet &pkt, char *buffer, size_t buffer_size);
@@ -37,6 +45,8 @@ public:
   packet deserializeHeader(const char *header_buffer);
   void receivePayload(packet &pkt);
   void serializeHeader(const packet &pkt, char *buffer, size_t buffer_size);
+  int createAndSetupSocket();
+  void acceptConnection();
 
 private:
   int socket_fd;

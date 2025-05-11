@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 NetworkManager::NetworkManager() : socket_fd(-1) {}
 NetworkManager::NetworkManager(int socket_fd) : socket_fd(socket_fd) {}
@@ -32,6 +33,28 @@ void NetworkManager::sendPacket(packet *p) {
   }
 };
 
+void NetworkManager::sendPacket(uint16_t type, uint16_t seqn,
+                                const std::string &payload) {
+  checkSocketInitialized();
+
+  packet pkt;
+  pkt.type = type;
+  pkt.seqn = seqn;
+  pkt.length = payload.size();
+  pkt.total_size = HEADER_SIZE + pkt.length;
+
+  // Aloca e copia o payload
+  pkt._payload = new char[payload.size() + 1];
+  std::strcpy(pkt._payload, payload.c_str());
+
+  // Envia o pacote
+  sendPacket(&pkt);
+
+  // Libera a memória do payload
+  delete[] pkt._payload;
+  pkt._payload = nullptr;
+}
+
 void NetworkManager::checkSocketInitialized() {
   if (socket_fd == -1) {
     throw std::runtime_error("Socket not initialized");
@@ -46,7 +69,13 @@ std::unique_ptr<char[]> NetworkManager::receiveHeader() {
     ssize_t received = recv(socket_fd, header_buffer.get() + total_received,
                             HEADER_SIZE - total_received, 0);
     if (received == -1) {
+      perror("recv"); // Log the error
       throw std::runtime_error("Failed to receive packet header");
+    } else if (received == 0) {
+      // Connection closed by the client
+      std::cerr << "Connection closed by peer during header reception"
+                << std::endl;
+      throw std::runtime_error("Connection closed by peer");
     }
     total_received += received;
   }
@@ -107,6 +136,7 @@ void NetworkManager::receivePayload(packet &pkt) {
 packet NetworkManager::receivePacket() {
   checkSocketInitialized();
 
+  std::cout << "Aguardando pacote..." << std::endl;
   auto header_buffer = receiveHeader();
   packet pkt = deserializeHeader(header_buffer.get());
 
@@ -198,4 +228,68 @@ packet NetworkManager::deserializePacket(const char *buffer,
   const_cast<char *>(pkt._payload)[pkt.length] = '\0';
 
   return pkt;
+}
+
+int NetworkManager::createAndSetupSocket() {
+  // Cria o socket de escuta
+  int listen_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (listen_socket_fd == -1) {
+    throw std::runtime_error("Falha ao criar socket de escuta");
+  }
+
+  // Configura o endereço e porta
+  sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = INADDR_ANY;
+  addr.sin_port = 0; // Porta será atribuída automaticamente pelo SO
+
+  // Faz o bind do socket
+  if (bind(listen_socket_fd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+    close(listen_socket_fd);
+    throw std::runtime_error("Falha ao fazer bind no socket");
+  }
+
+  // Coloca o socket em modo de escuta
+  if (listen(listen_socket_fd, 1) == -1) {
+    close(listen_socket_fd);
+    throw std::runtime_error("Falha ao fazer listen no socket");
+  }
+
+  // Obtém a porta atribuída automaticamente
+  socklen_t addrlen = sizeof(addr);
+  if (getsockname(listen_socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+    close(listen_socket_fd);
+    throw std::runtime_error("Falha ao obter informações do socket");
+  }
+
+  int port = ntohs(addr.sin_port);
+  std::cout << "Socket de escuta criado na porta: " << port << std::endl;
+
+  // Armazena o socket de escuta no atributo do objeto
+  this->socket_fd = listen_socket_fd;
+
+  // Retorna a porta para o chamador
+  return port;
+}
+
+void NetworkManager::acceptConnection() {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket não inicializado para aceitar conexões");
+  }
+
+  sockaddr_in client_addr;
+  socklen_t client_addrlen = sizeof(client_addr);
+  int client_socket_fd =
+      accept(socket_fd, (struct sockaddr *)&client_addr, &client_addrlen);
+  if (client_socket_fd == -1) {
+    throw std::runtime_error("Falha ao aceitar conexão do cliente");
+  }
+
+  std::cout << "Conexão aceita de cliente!" << std::endl;
+
+  // Fecha o socket de escuta
+  close(socket_fd);
+
+  // Armazena o socket do cliente no atributo do objeto
+  this->socket_fd = client_socket_fd;
 }

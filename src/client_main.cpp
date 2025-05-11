@@ -108,24 +108,55 @@ int main(int argc, char **argv) {
 
   NetworkManager network_manager(sock);
   packet p;
-  p.type = 1; // Exemplo de tipo
-  p.seqn = 1; // Exemplo de sequência
-  p._payload = "Hello from client";
-  p.length = strlen(p._payload);
+  p.type = 1;
+  p.seqn = 1;
+  std::string payload = "Hello from client";
+  p._payload = new char[payload.size() + 1]; // +1 for null terminator
+  std::strcpy(p._payload, payload.c_str());
+  p.length = payload.size();
   p.total_size = HEADER_SIZE + p.length;
 
   network_manager.sendPacket(&p);
+  packet response = network_manager.receivePacket();
+  std::cout << "Resposta recebida do servidor: " << response._payload
+            << std::endl;
 
-  // Ler a resposta do servidor (se houver)
-  // int valread = read(sock, buffer, sizeof(buffer));
-  // if (valread > 0) {
-  //   std::cout << "Resposta do servidor: " << std::string(buffer, valread)
-  //             << std::endl;
-  // } else {
-  //   std::cout << "Nenhuma resposta do servidor" << std::endl;
-  // }
+  // resposta é PORT <port>
+  // pega o port e se conecta
+  std::string port_str(response._payload);
+  std::string port_str2 = port_str.substr(5);
+  int port = std::stoi(port_str2);
+  std::cout << "Porta recebida do servidor: " << port << std::endl;
+  // Conectar ao servidor na porta recebida
+  int sock2 = socket(AF_INET, SOCK_STREAM, 0);
+  if (sock2 < 0) {
+    std::cerr << "Erro ao criar o socket" << std::endl;
+    return -1;
+  }
+  serv_addr.sin_port = htons(port);
+  // Conectar ao servidor
+  if (connect(sock2, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    std::cerr << "Falha ao conectar ao servidor" << std::endl;
+    return -1;
+  }
+  std::cout << "Conectado ao servidor na porta " << port << "!" << std::endl;
 
+  NetworkManager network_manager2(sock2);
+
+  // enviar algo na nova conexão
+  std::string payload2 = "Hello from client on new connection";
+  packet p2;
+  p2.type = 1;
+  p2.seqn = 1;
+  p2._payload = new char[payload2.size() + 1]; // +1 for null terminator
+  std::strcpy(p2._payload, payload2.c_str());
+  p2.length = payload2.size();
+  p2.total_size = HEADER_SIZE + p2.length;
+
+  std::cout << "Mandando pacote na nova conexão" << std::endl;
+  network_manager2.sendPacket(&p2);
   // Fechar o socket
   close(sock);
+  close(sock2);
   return 0;
 }
