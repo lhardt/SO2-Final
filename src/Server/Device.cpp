@@ -24,15 +24,12 @@ Device::Device(int command_socket_fd, ClientManager *client_manager)
   command_manager->sendPacket(CMD, 1,
                               command2); // Envia o comando para o cliente com a
 
-  push_manager->acceptConnection();
+  // push_manager->acceptConnection();
+  std::cout << "AAAAAA" << std::endl;
   file_watcher_receiver->acceptConnection();
 
-  std::cout << "AAAAAA" << std::endl;
-
-  packet pkt = push_manager->receivePacket();
-  packet pkt2 = file_watcher_receiver->receivePacket();
-  std::cout << "Recebido do dispositivo: " << pkt._payload << std::endl;
-  std::cout << "Recebido do dispositivo: " << pkt2._payload << std::endl;
+  // std::cout << "Recebido do dispositivo: " << pkt._payload << std::endl;
+  // std::cout << "Recebido do dispositivo: " << pkt2._payload << std::endl;
 }
 
 Device::~Device() {
@@ -58,7 +55,7 @@ void Device::pushThread() {
   try {
     std::cout << "Iniciando thread de push..." << std::endl;
     while (!stop_requested) {
-      push_manager->receivePacket();
+      // push_manager->receivePacket();
     }
   } catch (const std::runtime_error &e) {
     stop_requested = true;
@@ -72,7 +69,9 @@ void Device::fileWatcherThread() {
   try {
     std::cout << "Iniciando thread de file watcher..." << std::endl;
     while (!stop_requested) {
-      file_watcher_receiver->receivePacket();
+      packet pkt = file_watcher_receiver->receivePacket();
+      // printa payload
+      std::cout << "Recebido do dispositivo: " << pkt._payload << std::endl;
     }
   } catch (const std::runtime_error &e) {
     std::cout << "Cliente desconectado: " << e.what() << std::endl;

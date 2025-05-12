@@ -304,9 +304,19 @@ int NetworkManager::createAndSetupSocket() {
 }
 
 void NetworkManager::acceptConnection() {
+  // std::cout << "esperando conexao na porta: " << socket_fd << std::endl;
   if (socket_fd == -1) {
     throw std::runtime_error("Socket não inicializado para aceitar conexões");
   }
+  // Obtém a porta do socket
+  sockaddr_in addr;
+  socklen_t addrlen = sizeof(addr);
+  if (getsockname(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+    throw std::runtime_error("Falha ao obter informações do socket");
+  }
+  int port = ntohs(addr.sin_port);
+
+  std::cout << "Esperando conexão na porta: " << port << std::endl;
 
   sockaddr_in client_addr;
   socklen_t client_addrlen = sizeof(client_addr);

@@ -19,6 +19,8 @@ void ClientManager::handle_new_connection(int socket) {
       return;
     }
 
+    std::cout << "CRIANDO NOVO DEVICE\n";
+
     Device *device = new Device(socket, this);
     devices.push_back(device);
     std::cout << "Devices: " << devices.size() << std::endl;

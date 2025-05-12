@@ -95,6 +95,8 @@ void Client::handleFileThread() {
     close(sock);
   }
 
+  std::cout << "conectado na porta " << this->file_watcher_port << std::endl;
+
   // recebi uma porta de arugmento na thread
   // crio um socket e me conecto nessa porta
 
@@ -138,8 +140,9 @@ void Client::handleFileThread() {
         if (event->mask & IN_CLOSE_WRITE) {
           log_info("Arquivo modificado: %s", filepath.c_str());
           // FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA
-          // connections.cpp
+          file_watcher_manager.sendPacket(CMD, 1, filepath);
           // (ou algo assim) uploadFile(sock, filepath)
+
         } else if (event->mask & IN_DELETE) {
           log_info("Arquivo removido: %s", filepath.c_str());
           // FAZER FUNÇÃO QUE ENVIA NOME DO ARQUIVO A SER DELETADO EM UMA
@@ -239,7 +242,7 @@ Client::Client(std::string _client_name, std::string _server_ip,
   std::string port_str = payload.substr(payload.find(" ") + 1);
   int port = std::stoi(port_str);
   std::cout << "Porta recebida do servidor: " << port << std::endl;
-  this->file_watcher_port = port;
+  this->push_port = port;
 
   // recebe o segundo pacote do server
   packet pkt2 = command_manager->receivePacket();
@@ -248,7 +251,7 @@ Client::Client(std::string _client_name, std::string _server_ip,
   std::string port_str2 = payload2.substr(payload2.find(" ") + 1);
   int port2 = std::stoi(port_str2);
   std::cout << "Porta recebida do servidor: " << port2 << std::endl;
-  this->push_port = port2;
+  this->file_watcher_port = port2;
 
   std::string sync_dir = "sync_dir";
   if (mkdir(sync_dir.c_str(), 0777) == -1) {

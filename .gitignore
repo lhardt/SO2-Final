@@ -2,4 +2,5 @@ bin/*
 obj/*
 lib/*
 test_user/
+sync_dir/
 logger.log
