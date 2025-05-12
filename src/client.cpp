@@ -2,22 +2,21 @@
 #include <cstdlib>
 #include <chrono>
 #include <arpa/inet.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/inotify.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <regex>
+#include <filesystem>
 #include "logger.hpp"
 #include "client.hpp"
 #include "constants.hpp"
 
-Client::Client(std::string _client_name, std::string _server_ip, std::string _server_port)
-    : client_name(_client_name), server_ip(_server_ip), server_port(_server_port)
-{
-    this->io_thread = std::thread(g_handleIoThread, this);
-    this->network_thread = std::thread(g_handleNetworkThread, this);
-    this->file_thread = std::thread(g_handleFileThread, this);
+using namespace std;
 
-}
+std::regex upl("upload ([a-zA-Z0-9_/\\.]+)"), dow("download ([a-zA-Z0-9_/\\.]+)"), del("delete ([a-zA-Z0-9_/\\.]+)"),
+    lsr("list_server"), lcl("list_client"), gsd("get_sync_dir"), ext("exit");
 
 void g_handleIoThread(Client * client){
     log_assert(client != NULL, "Null client!");
@@ -71,7 +70,7 @@ void Client::handleFileThread(){
         log_error("Could not initiate inotify");
         return;
     }
-    int watchDescriptor = inotify_add_watch(inotifyFd, sync_dir, IN_CREATE | IN_MODIFY | IN_DELETE);
+    int watchDescriptor = inotify_add_watch(inotifyFd, sync_dir,  IN_DELETE | IN_CLOSE_WRITE);
     if (watchDescriptor < 0) {
         log_error("Could not initiate watchDescriptor");
         return;
@@ -95,20 +94,15 @@ void Client::handleFileThread(){
             struct inotify_event* event = (struct inotify_event*)&buffer[i];
 
             if (event->len > 0) {
-                std::string filepath = "./" + std::string(sync_dir) + "/" + event->name;
+                std::string filepath = "./" + std::string(sync_dir) + "/" + std::string(event->name);
 
-                if (event->mask & IN_CREATE) {
-                    log_info("Arquivo adicionado: %s", filepath);
+                if (event->mask & IN_CLOSE_WRITE) {
+                    log_info("Arquivo modificado: %s", filepath.c_str());
                     //FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA connections.cpp (ou algo assim)
                     //uploadFile(sock, filepath)
                 }
-                if (event->mask & IN_MODIFY) {
-                    log_info("Arquivo modificado: %s", filepath);
-                    //FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA connections.cpp (ou algo assim)
-                    //uploadFile(sock, filepath)
-                }
-                if (event->mask & IN_DELETE) {
-                    log_info("Arquivo removido: %s", filepath);
+                else if (event->mask & IN_DELETE) {
+                    log_info("Arquivo removido: %s", filepath.c_str());
                     //FAZER FUNÇÃO QUE ENVIA NOME DO ARQUIVO A SER DELETADO EM UMA connections.cpp (ou algo assim)
                     //deleteFile(sock, event->name)
                 }
