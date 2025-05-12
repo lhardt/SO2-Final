@@ -7,7 +7,7 @@ ClientManager::ClientManager(string username)
   if (username.empty()) {
     throw std::runtime_error("Username cannot be empty");
   }
-  file_manager = new FileManager(username);
+  file_manager = new FileManager("sync_dir_" + username);
 }
 
 void ClientManager::handle_new_connection(int socket) {

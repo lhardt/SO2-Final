@@ -73,6 +73,19 @@ int main(int argc, char **argv) {
   log_info("Hello from CLIENT, SO2-Final!\n");
 
   // TODO: get info from argc/argv
+  // primeiro argumento username
+  // segundo argumento ip do servidor
+  // terceiro argumento porta do servidor
+
+  if (argc < 3) {
+    std::cerr << "Uso: " << argv[0] << " <username> <ip> <port>" << std::endl;
+    return -1;
+  }
+  std::string username = argv[1];
+  std::string server_ip = argv[2];
+  std::string server_port = argv[3];
+
+  int server_port_int = std::stoi(server_port);
 
   int sock = 0;
   struct sockaddr_in serv_addr;
@@ -85,10 +98,10 @@ int main(int argc, char **argv) {
   }
 
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(SERVER_PORT);
+  serv_addr.sin_port = htons(server_port_int);
 
   // Converter o endereço IP para binário
-  if (inet_pton(AF_INET, SERVER_ADDRESS, &serv_addr.sin_addr) <= 0) {
+  if (inet_pton(AF_INET, server_ip.c_str(), &serv_addr.sin_addr) <= 0) {
     std::cerr << "Endereço inválido ou não suportado" << std::endl;
     return -1;
   }
@@ -101,8 +114,6 @@ int main(int argc, char **argv) {
 
   std::cout << "Conectado ao servidor!" << std::endl;
 
-  // Enviar um nome de usuário para o servidor
-  std::string username = "test_user";
   send(sock, username.c_str(), username.size(), 0);
   std::cout << "Nome de usuário enviado: " << username << std::endl;
 
