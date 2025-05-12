@@ -3,7 +3,12 @@
 #include <unistd.h>
 
 ClientManager::ClientManager(string username)
-    : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {}
+    : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {
+  if (username.empty()) {
+    throw std::runtime_error("Username cannot be empty");
+  }
+  file_manager = new FileManager(username);
+}
 
 void ClientManager::handle_new_connection(int socket) {
   try {
@@ -24,10 +29,9 @@ void ClientManager::handle_new_connection(int socket) {
     close(socket);
   }
 }
-
 string ClientManager::getUsername() { return this->username; }
 
-void ClientManager::handle_new_push(string file_path) {}
+void ClientManager::handle_new_push(string file_path, Device *caller) {}
 
 void ClientManager::removeDevice(Device *device) {
   std::lock_guard<std::mutex> lock(

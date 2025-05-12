@@ -25,13 +25,14 @@ private:
   std::thread *push_thread;
   std::thread *file_watcher_thread;
 
-public:
-  Device(int command_socket_fd, ClientManager *client_manager);
-  ~Device();
   void commandThread();
   void pushThread();
   void fileWatcherThread();
+
+public:
+  Device(int command_socket_fd, ClientManager *client_manager);
   void start();
   void stop();
   bool isStopRequested();
+  ~Device();
 };

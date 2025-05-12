@@ -41,6 +41,7 @@ public:
   void closeConnection();
   int createAndSetupSocket();
   void acceptConnection();
+  void closeSocket();
 
 private:
   int socket_fd;

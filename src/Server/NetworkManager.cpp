@@ -65,6 +65,13 @@ void NetworkManager::sendPacket(uint16_t type, uint16_t seqn,
   pkt._payload = nullptr;
 }
 
+void NetworkManager::closeSocket() {
+  if (socket_fd != -1) {
+    close(socket_fd);
+    socket_fd = -1;
+  }
+}
+
 void NetworkManager::checkSocketInitialized() {
   if (socket_fd == -1) {
     throw std::runtime_error("Socket not initialized");
