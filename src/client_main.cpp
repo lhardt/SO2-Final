@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
   send(sock, username.c_str(), username.size(), 0);
   std::cout << "Nome de usuário enviado: " << username << std::endl;
 
-  NetworkManager network_manager(sock);
+  NetworkManager network_manager(sock, "ClientManager");
   packet p;
   p.type = 1;
   p.seqn = 1;
@@ -166,14 +166,16 @@ int main(int argc, char **argv) {
   }
   std::cout << "Conectado ao servidor na porta " << port2 << "!" << std::endl;
 
-  NetworkManager network_manager2(sock2);
-  NetworkManager network_manager3(sock3);
+  NetworkManager network_manager2(sock2, "PushManager");
+  NetworkManager network_manager3(sock3, "FileWatcherReceiver");
 
   std::cout << "Mandando pacote PORT " << port << std::endl;
   network_manager2.sendPacket(CMD, 1, "PORT " + std::to_string(port));
   std::cout << "Mandando pacote PORT " << port2 << std::endl;
   network_manager3.sendPacket(CMD, 1, "PORT " + std::to_string(port2));
 
+  while (true)
+    ;
   // Fechar o socket
   close(sock);
   close(sock2);

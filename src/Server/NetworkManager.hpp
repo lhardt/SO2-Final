@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <netinet/in.h>
+#include <string>
 #include <sys/socket.h>
 
 #define MAX_PACKET_SIZE 2048
@@ -31,24 +32,25 @@ static constexpr size_t HEADER_SIZE = sizeof(uint16_t)   /* type */
 
 class NetworkManager {
 public:
-  NetworkManager();
-  NetworkManager(int socket_fd);
+  NetworkManager(const std::string &name = "");
+  NetworkManager(int socket_fd, const std::string &name = "");
 
   void sendPacket(packet *p);
   void sendPacket(uint16_t type, uint16_t seqn, const std::string &payload);
   packet receivePacket();
-
-  void serializePacket(const packet &pkt, char *buffer, size_t buffer_size);
-  packet deserializePacket(const char *buffer, size_t buffer_size);
-  void checkSocketInitialized();
-  std::unique_ptr<char[]> receiveHeader();
-  packet deserializeHeader(const char *header_buffer);
-  void receivePayload(packet &pkt);
-  void serializeHeader(const packet &pkt, char *buffer, size_t buffer_size);
+  void closeConnection();
   int createAndSetupSocket();
   void acceptConnection();
 
 private:
   int socket_fd;
+  std::string name;
   bool isPacketValid(const packet &pkt);
+  packet deserializeHeader(const char *header_buffer);
+  void receivePayload(packet &pkt);
+  void serializeHeader(const packet &pkt, char *buffer, size_t buffer_size);
+  void serializePacket(const packet &pkt, char *buffer, size_t buffer_size);
+  packet deserializePacket(const char *buffer, size_t buffer_size);
+  void checkSocketInitialized();
+  std::unique_ptr<char[]> receiveHeader();
 };

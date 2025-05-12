@@ -8,8 +8,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-NetworkManager::NetworkManager() : socket_fd(-1) {}
-NetworkManager::NetworkManager(int socket_fd) : socket_fd(socket_fd) {}
+NetworkManager::NetworkManager(const std::string &name)
+    : socket_fd(-1), name(name) {}
+NetworkManager::NetworkManager(int socket_fd, const std::string &name)
+    : socket_fd(socket_fd), name(name) {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Invalid socket file descriptor");
+  }
+}
 
 void NetworkManager::sendPacket(packet *p) {
   if (socket_fd == -1) {
@@ -88,12 +94,12 @@ std::unique_ptr<char[]> NetworkManager::receiveHeader() {
                             HEADER_SIZE - total_received, 0);
     if (received == -1) {
       perror("recv"); // Log the error
-      throw std::runtime_error("Failed to receive packet header");
+      throw std::runtime_error("Failed to receive packet header\n");
     } else if (received == 0) {
       // Connection closed by the client
       std::cerr << "Connection closed by peer during header reception"
                 << std::endl;
-      throw std::runtime_error("Connection closed by peer");
+      throw std::runtime_error("Connection closed by peer\n");
     }
     total_received += received;
   }
@@ -141,7 +147,7 @@ void NetworkManager::receivePayload(packet &pkt) {
           pkt.length - total_payload_received, 0);
       if (received == -1) {
         delete[] pkt._payload; // Clean up allocated memory
-        throw std::runtime_error("Failed to receive packet payload");
+        throw std::runtime_error("Failed to receive packet payload\n");
       }
       total_payload_received += received;
     }
@@ -310,4 +316,13 @@ void NetworkManager::acceptConnection() {
 
   // Armazena o socket do cliente no atributo do objeto
   this->socket_fd = client_socket_fd;
+}
+
+void NetworkManager::closeConnection() {
+  if (socket_fd != -1) {
+    shutdown(socket_fd, SHUT_RDWR); // garante despertar o recv()
+    close(socket_fd);
+    socket_fd = -1;
+    std::cout << name << " Fechou conexão!" << std::endl;
+  }
 }

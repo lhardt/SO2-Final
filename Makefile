@@ -64,6 +64,12 @@ all: $(TRG_MAIN)
 run: $(TARGET)
 	./run.sh
 
+run-server: $(BINDIR)/server
+	./bin/server
+
+run-client: $(BINDIR)/client
+	./bin/client
+
 clean:
 	-rm $(OBJ) $(TARGET)
 
