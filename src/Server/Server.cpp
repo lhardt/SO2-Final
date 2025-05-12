@@ -83,17 +83,25 @@ void Server::run() {
       exit(EXIT_FAILURE);
     }
     cout << "Nova conexão recebida" << endl;
+    NetworkManager network_manager(new_socket_fd, "server");
+    // espera um pacote com payload sendo o username
+    packet pkt = network_manager.receivePacket();
+    std::cout << "Recebido do cliente: " << pkt._payload << std::endl;
 
-    // Espera receber o username do cliente no socket
-    memset(buffer, 0, sizeof(buffer));
-    int valread = read(new_socket_fd, buffer,
-                       sizeof(buffer) - 1); // Leave space for null terminator
-    if (valread <= 0) {
-      close(new_socket_fd);
-      continue;
-    }
-    buffer[valread] = '\0'; // Null-terminate the string
-    std::string username(buffer, valread);
+    std::string username(pkt._payload);
+    std::cout << "Username recebido: " << username << std::endl;
+
+    // // Espera receber o username do cliente no socket
+    // memset(buffer, 0, sizeof(buffer));
+    // int valread = read(new_socket_fd, buffer,
+    //                    sizeof(buffer) - 1); // Leave space for null
+    //                    terminator
+    // if (valread <= 0) {
+    //   close(new_socket_fd);
+    //   continue;
+    // }
+    // buffer[valread] = '\0'; // Null-terminate the string
+    // std::string username(buffer, valread);
 
     if (ClientManager *manager = clientExists(username)) {
       // Se o cliente já existe, entrega o socket para o manager
