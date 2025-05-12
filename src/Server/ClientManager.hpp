@@ -26,8 +26,9 @@ public:
 private:
   vector<Device *> devices;
   FileManager *file_manager;
+  NetworkManager *network_manager;
   int max_devices;
   string username;
 
-  void handle_new_push(string file_path);
+  void handle_new_push(string file_path, Device *caller);
 };

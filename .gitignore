@@ -1,4 +1,5 @@
 bin/*
 obj/*
 lib/*
+test_user/
 logger.log

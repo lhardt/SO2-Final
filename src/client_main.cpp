@@ -174,6 +174,9 @@ int main(int argc, char **argv) {
   std::cout << "Mandando pacote PORT " << port2 << std::endl;
   network_manager3.sendPacket(CMD, 1, "PORT " + std::to_string(port2));
 
+  while (true)
+    ;
+
   // Fechar o socket
   close(sock);
   close(sock2);

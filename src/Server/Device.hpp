@@ -18,10 +18,12 @@ private:
                               //
   ClientManager *client_manager; // cliente que possui o dispositivo
 
-public:
-  Device(int command_socket_fd, ClientManager *client_manager);
-  ~Device();
   void commandThread();
   void pushThread();
   void fileWatcherThread();
+
+public:
+  Device(int command_socket_fd, ClientManager *client_manager);
+  ~Device();
+  void start(); // inicia as threads para atender o cliente
 };

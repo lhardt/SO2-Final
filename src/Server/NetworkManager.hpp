@@ -37,18 +37,18 @@ public:
   void sendPacket(packet *p);
   void sendPacket(uint16_t type, uint16_t seqn, const std::string &payload);
   packet receivePacket();
-
-  void serializePacket(const packet &pkt, char *buffer, size_t buffer_size);
-  packet deserializePacket(const char *buffer, size_t buffer_size);
-  void checkSocketInitialized();
-  std::unique_ptr<char[]> receiveHeader();
-  packet deserializeHeader(const char *header_buffer);
-  void receivePayload(packet &pkt);
-  void serializeHeader(const packet &pkt, char *buffer, size_t buffer_size);
   int createAndSetupSocket();
   void acceptConnection();
+  void closeSocket();
 
 private:
   int socket_fd;
   bool isPacketValid(const packet &pkt);
+  void serializeHeader(const packet &pkt, char *buffer, size_t buffer_size);
+  void receivePayload(packet &pkt);
+  packet deserializeHeader(const char *header_buffer);
+  packet deserializePacket(const char *buffer, size_t buffer_size);
+  void serializePacket(const packet &pkt, char *buffer, size_t buffer_size);
+  void checkSocketInitialized();
+  std::unique_ptr<char[]> receiveHeader();
 };

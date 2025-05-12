@@ -86,14 +86,14 @@ void Server::run() {
 
     // Espera receber o username do cliente no socket
     memset(buffer, 0, sizeof(buffer));
-    int valread = read(new_socket_fd, buffer, sizeof(buffer));
-    buffer[valread] = '\0'; // Adiciona o terminador nulo
-    cout << "Username recebido: " << buffer << endl;
+    int valread = read(new_socket_fd, buffer,
+                       sizeof(buffer) - 1); // Leave space for null terminator
     if (valread <= 0) {
       close(new_socket_fd);
       continue;
     }
-    string username(buffer, valread);
+    buffer[valread] = '\0'; // Null-terminate the string
+    std::string username(buffer, valread);
 
     if (ClientManager *manager = clientExists(username)) {
       // Se o cliente já existe, entrega o socket para o manager
