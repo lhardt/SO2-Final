@@ -1,5 +1,5 @@
 #include "NetworkManager.hpp"
-#include "../logger.h"
+#include "../logger.hpp"
 #include "FileManager.hpp"
 #include <cstddef>
 #include <cstring>
