@@ -139,9 +139,8 @@ void Client::handleFileThread() {
 
         if (event->mask & IN_CLOSE_WRITE) {
           log_info("Arquivo modificado: %s", filepath.c_str());
-          // FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA
-          file_watcher_manager.sendPacket(CMD, 1, filepath);
-          // (ou algo assim) uploadFile(sock, filepath)
+          file_watcher_manager.sendFileInChunks(filepath, MAX_PACKET_SIZE); 
+          //file_watcher_manager.sendPacket(CMD, 1, filepath);
 
         } else if (event->mask & IN_DELETE) {
           log_info("Arquivo removido: %s", filepath.c_str());

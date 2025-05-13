@@ -7,6 +7,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <fstream>
+#include "../logger.h"
+#include "FileManager.hpp"
 
 NetworkManager::NetworkManager(const std::string &name)
     : socket_fd(-1), name(name) {}
@@ -174,6 +177,37 @@ packet NetworkManager::receivePacket() {
   receivePayload(pkt);
 
   return pkt;
+}
+
+void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t bufferSize) {
+  FileManager fileManager("sync_dir"); // Ajuste o diretório base conforme necessário
+
+  try {
+      // Lê o arquivo inteiro como um vetor de bytes
+      std::vector<char> fileData = fileManager.readFile(filepath);
+
+      size_t totalSize = fileData.size();
+      size_t offset = 0;
+      uint16_t sequenceNumber = 0;
+
+      // Divide o arquivo em pedaços e envia cada pedaço
+      while (offset < totalSize) {
+          size_t chunkSize = std::min(bufferSize, totalSize - offset);
+
+          std::string payload(fileData.begin() + offset, fileData.begin() + offset + chunkSize);
+
+          sendPacket(DATA, sequenceNumber++, payload);
+          log_info("Sent chunk of size %zu from file: %s", chunkSize, filepath.c_str());
+
+          offset += chunkSize;
+      }
+
+      // Envia um pacote final indicando o término do envio
+      sendPacket(CMD, sequenceNumber, "END_OF_FILE");
+      log_info("Finished sending file: %s", filepath.c_str());
+  } catch (const std::exception &e) {
+      log_error("Error reading or sending file: %s", e.what());
+  }
 }
 
 void NetworkManager::serializePacket(const packet &pkt, char *buffer,
