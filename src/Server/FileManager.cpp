@@ -24,11 +24,15 @@ void FileManager::createDirectory(const std::string &path) {
   }
 }
 
+
+
 void FileManager::deleteDirectory(const std::string &path) {
   if (rmdir(path.c_str()) != 0) {
     throw std::runtime_error("Failed to delete directory: " + path);
   }
 }
+
+
 
 std::string FileManager::getBaseDirectory() { return base_directory; }
 
@@ -44,15 +48,37 @@ std::vector<char> FileManager::readFile(const std::string &file_path) {
   return buffer;
 }
 
+
+
+void FileManager::createFile(const std::string &file_path){
+  std::cout << "Creating file: " << std::endl;
+  std::ofstream MyFile(file_path);
+  if(!MyFile){
+    throw std::runtime_error("Failed to create the file: " + file_path);
+  }
+}
+
+
+
+void FileManager::clearFile(const std::string &file_path){
+  std::ofstream ofs;
+  ofs.open(file_path, std::ofstream::out | std::ofstream::trunc);
+  ofs.close();
+}
+
+
+
 void FileManager::writeFile(const std::string &file_path,
                             const std::vector<char> &data) {
   std::cout << "Writing file: " << file_path << std::endl;
-  std::ofstream file(file_path, std::ios::binary);
+  std::ofstream file(file_path, std::ios::binary | std::ios::app);
   if (!file) {
     throw std::runtime_error("Failed to open file: " + file_path);
   }
   file.write(data.data(), data.size());
-} // tem que mudar para sempre dar append no arquivo
+}
+
+
 
 void FileManager::printFile(const std::string &file_path) {
   std::cout << "Printing file: " << file_path << std::endl;
@@ -66,9 +92,12 @@ void FileManager::printFile(const std::string &file_path) {
   }
 }
 
+
+
 void FileManager::deleteFile(const std::string &file_path) {
   std::cout << "Deleting file: " << file_path << std::endl;
   if (remove(file_path.c_str()) != 0) {
     throw std::runtime_error("Failed to delete file: " + file_path);
   }
 }
+

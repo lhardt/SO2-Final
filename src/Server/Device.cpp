@@ -42,6 +42,8 @@ Device::~Device() {
   delete file_watcher_receiver;
 }
 
+
+
 void Device::commandThread() { // thread se comporta recebendo comandos do
                                // cliente e enviando dados para ele
   try {
@@ -55,6 +57,8 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
   }
   std::cout << "Command thread finished" << std::endl;
 }
+
+
 
 void Device::pushThread() { // thread se comporta somente enviando dados ao
                             // cliente, nao recebe
@@ -70,6 +74,8 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
   }
   std::cout << "Push thread finished" << std::endl;
 }
+
+
 
 void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
                                    // do cliente,nao envia
@@ -92,7 +98,7 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
       packet pkt = file_watcher_receiver->receivePacket();
       std::cout << "Recebido do dispositivo: " << pkt._payload << std::endl;
 
-      // Extract the first word from the payload
+      // Extrai a primeira palavra do PAYLOAD (QUE SEMPRE SERÁ CREATED, WRITE, DELETED)
       std::istringstream payload_stream(pkt._payload);
       std::string first_word;
       payload_stream >> first_word;
@@ -100,24 +106,32 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
       std::cout << "Primeira palavra do payload: " << first_word << std::endl;
 
       // Interpret the packet based on the first word
-      if (first_word == "CREATED") {
-        // Handle DOWNLOAD command
-
-      } else if (first_word == "WRITE") {
-        // Handle DELETED command
+      if (first_word == "CREATED") {              // CREATED =  
+        
         std::string second_word;
         payload_stream >> second_word;
+        file_manager->createFile(second_word);
 
+      } else if (first_word == "WRITE") {
+        
+        std::string second_word;
+        payload_stream >> second_word;
         file_manager->clearFile(second_word);
         bool stop = false;
         while (!stop) {
           packet pkt_received = file_watcher_receiver->receivePacket();
-          // recebe o pacote de dados e vai escrevendo
-          // quando receber o end of file stop = true
+          std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
+          file_manager->writeFile(second_word, data);
+
+          if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
+            stop = true;
+          } 
         }
 
       } else if (first_word == "DELETED") {
-        // Handle WRITE command
+        std::string second_word;
+        payload_stream >> second_word;
+        file_manager->deleteFile(second_word);
       }
     }
   } catch (const std::runtime_error &e) {
@@ -126,6 +140,8 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
   }
   std::cout << "File watcher thread finished" << std::endl;
 }
+
+
 
 void Device::start() {
   command_thread = new thread(&Device::commandThread, this);
@@ -144,6 +160,8 @@ void Device::start() {
   }
   client_manager->removeDevice(this);
 }
+
+
 
 void Device::stop() {
   stop_requested = true;
@@ -179,5 +197,7 @@ void Device::stop() {
   push_thread = nullptr;
   file_watcher_thread = nullptr;
 }
+
+
 
 bool Device::isStopRequested() { return stop_requested; }

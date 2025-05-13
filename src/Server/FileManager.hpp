@@ -14,9 +14,7 @@ public:
   std::string getBaseDirectory();
 
   std::vector<char> readFile(const std::string &file_path);
-  void writeFile(
-      const std::string &file_path,
-      const std::vector<char> &data); // sempre adiciona no final do arquivo
+  void writeFile(const std::string &file_path,const std::vector<char> &data); // sempre adiciona no final do arquivo
   void createFile(const std::string &file_path);
   void clearFile(const std::string &file_path);
   void printFile(const std::string &file_path);

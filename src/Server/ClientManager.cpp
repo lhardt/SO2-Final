@@ -10,6 +10,8 @@ ClientManager::ClientManager(string username)
   file_manager = new FileManager("sync_dir_" + username);
 }
 
+
+
 void ClientManager::handle_new_connection(int socket) {
   try {
     if (devices.size() == max_devices) {
@@ -31,9 +33,16 @@ void ClientManager::handle_new_connection(int socket) {
     close(socket);
   }
 }
+
+
+
 string ClientManager::getUsername() { return this->username; }
 
+
+
 void ClientManager::handle_new_push(string file_path, Device *caller) {}
+
+
 
 void ClientManager::removeDevice(Device *device) {
   std::lock_guard<std::mutex> lock(
@@ -51,6 +60,8 @@ void ClientManager::removeDevice(Device *device) {
     std::cerr << "Erro ao remover dispositivo: " << e.what() << std::endl;
   }
 }
+
+
 
 void ClientManager::sendFileToDevice(Device *device, const string &file_path) {
   std::cout << "Enviando arquivo para o dispositivo: " << file_path
