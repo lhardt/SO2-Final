@@ -1,10 +1,12 @@
 #include "Device.hpp"
+#include "FileManager.hpp"
 #include <cstring>
 #include <exception>
 #include <sstream> // Add this include for std::istringstream
 #include <string>
 
-Device::Device(int command_socket_fd, ClientManager *client_manager)
+Device::Device(int command_socket_fd, ClientManager *client_manager,
+               FileManager *file_manager)
     : stop_requested(false), command_thread(nullptr), push_thread(nullptr),
       file_watcher_thread(nullptr), client_manager(client_manager),
       file_manager(file_manager) {
