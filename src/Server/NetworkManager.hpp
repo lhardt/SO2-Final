@@ -37,7 +37,7 @@ public:
   NetworkManager(int socket_fd, const std::string &name = "");
 
   void sendPacket(packet *p);
-  void sendPacket(uint16_t type, uint16_t seqn, const std::string &payload);
+  void sendPacket(uint16_t type, uint16_t seqn, const std::vector<char> &payload);
   packet receivePacket();
   void sendFileInChunks(const std::string &filepath, const size_t bufferSize);
   void sendBufferInChunks(const std::vector<char> &buffer);

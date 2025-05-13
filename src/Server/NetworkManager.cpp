@@ -1,15 +1,15 @@
 #include "NetworkManager.hpp"
+#include "../logger.h"
+#include "FileManager.hpp"
 #include <cstddef>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <fstream>
-#include "../logger.h"
-#include "FileManager.hpp"
 
 NetworkManager::NetworkManager(const std::string &name)
     : socket_fd(-1), name(name) {}
@@ -45,8 +45,7 @@ void NetworkManager::sendPacket(packet *p) {
   }
 };
 
-void NetworkManager::sendPacket(uint16_t type, uint16_t seqn,
-                                const std::string &payload) {
+void NetworkManager::sendPacket(uint16_t type, uint16_t seqn, const std::vector<char> &payload) {
   checkSocketInitialized();
 
   packet pkt;
@@ -55,15 +54,11 @@ void NetworkManager::sendPacket(uint16_t type, uint16_t seqn,
   pkt.length = payload.size();
   pkt.total_size = HEADER_SIZE + pkt.length;
 
-  // Aloca e copia o payload
-  pkt._payload = new char[payload.size() + 1];
-  std::strcpy(pkt._payload, payload.c_str());
+  pkt._payload = new char[payload.size()];
+  std::memcpy(pkt._payload, payload.data(), payload.size());
 
-  // Envia o pacote
   sendPacket(&pkt);
-  std::cout << "Pacote enviado: " << pkt._payload << std::endl;
 
-  // Libera a memória do payload
   delete[] pkt._payload;
   pkt._payload = nullptr;
 }
@@ -180,33 +175,39 @@ packet NetworkManager::receivePacket() {
 }
 
 void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t bufferSize) {
-  FileManager fileManager("sync_dir"); // Ajuste o diretório base conforme necessário
+  FileManager fileManager(
+      "sync_dir"); // Ajuste o diretório base conforme necessário
 
   try {
-      // Lê o arquivo inteiro como um vetor de bytes
-      std::vector<char> fileData = fileManager.readFile(filepath);
+    // Lê o arquivo inteiro como um vetor de bytes
+    std::vector<char> fileData = fileManager.readFile(filepath);
 
-      size_t totalSize = fileData.size();
-      size_t offset = 0;
-      uint16_t sequenceNumber = 0;
+    size_t totalSize = fileData.size();
+    size_t offset = 0;
+    uint16_t sequenceNumber = 0;
 
-      // Divide o arquivo em pedaços e envia cada pedaço
-      while (offset < totalSize) {
-          size_t chunkSize = std::min(bufferSize, totalSize - offset);
+    size_t totalPackets = (totalSize + bufferSize - 1) / bufferSize;
+    // Divide o arquivo em pedaços e envia cada pedaço
+    while (offset < totalSize) {
+      size_t chunkSize = std::min(bufferSize, totalSize - offset);
 
-          std::string payload(fileData.begin() + offset, fileData.begin() + offset + chunkSize);
+      std::string payload(fileData.begin() + offset,
+                          fileData.begin() + offset + chunkSize);
 
-          sendPacket(DATA, sequenceNumber++, payload);
-          log_info("Sent chunk of size %zu from file: %s", chunkSize, filepath.c_str());
+      std::string command = payload;
+      sendPacket(DATA, sequenceNumber++, std::vector<char>(command.begin(), command.end()));
+      log_info("Sent chunk of size %zu from file: %s, %d/%d", chunkSize,
+               filepath.c_str(), sequenceNumber, totalPackets);
 
-          offset += chunkSize;
-      }
+      offset += chunkSize;
+    }
 
-      // Envia um pacote final indicando o término do envio
-      sendPacket(CMD, sequenceNumber, "END_OF_FILE");
-      log_info("Finished sending file: %s", filepath.c_str());
+    // Envia um pacote final indicando o término do envio
+    std::string command = "END_OF_FILE";
+    sendPacket(CMD, sequenceNumber, std::vector<char>(command.begin(), command.end()));
+    log_info("Finished sending file: %s", filepath.c_str());
   } catch (const std::exception &e) {
-      log_error("Error reading or sending file: %s", e.what());
+    log_error("Error reading or sending file: %s", e.what());
   }
 }
 

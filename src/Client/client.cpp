@@ -138,9 +138,12 @@ void Client::handleFileThread() {
             "./" + std::string(sync_dir) + "/" + std::string(event->name);
 
         if (event->mask & IN_CLOSE_WRITE) {
-          log_info("Arquivo modificado: %s", filepath.c_str());
-          file_watcher_manager.sendFileInChunks(filepath, MAX_PACKET_SIZE); 
-          //file_watcher_manager.sendPacket(CMD, 1, filepath);
+          std::string file_name = event->name;
+          log_info("Arquivo modificado: %s", file_name.c_str());
+          std::string command = "WRITE " + file_name;
+          file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          file_watcher_manager.sendFileInChunks(file_name, MAX_PACKET_SIZE);
+          // file_watcher_manager.sendPacket(CMD, 1, filepath);
 
         } else if (event->mask & IN_DELETE) {
           log_info("Arquivo removido: %s", filepath.c_str());
@@ -232,7 +235,8 @@ Client::Client(std::string _client_name, std::string _server_ip,
   std::cout << "Conectado ao servidor!" << std::endl;
 
   this->command_manager = new NetworkManager(sock, "CommandManager");
-  command_manager->sendPacket(CMD, 1, client_name);
+  std::string command = client_name;
+  command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
 
   // recebe o primeiro pacote do server
   packet pkt = command_manager->receivePacket();

@@ -10,20 +10,19 @@ ClientManager::ClientManager(string username)
   file_manager = new FileManager("sync_dir_" + username);
 }
 
-
-
 void ClientManager::handle_new_connection(int socket) {
   try {
     if (devices.size() == max_devices) {
       NetworkManager network_manager(socket, "Limite de dispositivos");
-      network_manager.sendPacket(CMD, 0, "Limite de dispositivos atingido");
+      std::string command = "Limite de dispositivos atingido";
+      network_manager.sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
       network_manager.closeConnection();
       return;
     }
 
     std::cout << "CRIANDO NOVO DEVICE\n";
 
-    Device *device = new Device(socket, this);
+    Device *device = new Device(socket, this, file_manager);
     devices.push_back(device);
     std::cout << "Devices: " << devices.size() << std::endl;
     device->start();
@@ -34,15 +33,9 @@ void ClientManager::handle_new_connection(int socket) {
   }
 }
 
-
-
 string ClientManager::getUsername() { return this->username; }
 
-
-
 void ClientManager::handle_new_push(string file_path, Device *caller) {}
-
-
 
 void ClientManager::removeDevice(Device *device) {
   std::lock_guard<std::mutex> lock(
@@ -60,8 +53,6 @@ void ClientManager::removeDevice(Device *device) {
     std::cerr << "Erro ao remover dispositivo: " << e.what() << std::endl;
   }
 }
-
-
 
 void ClientManager::sendFileToDevice(Device *device, const string &file_path) {
   std::cout << "Enviando arquivo para o dispositivo: " << file_path

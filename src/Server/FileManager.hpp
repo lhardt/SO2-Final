@@ -13,10 +13,13 @@ public:
   void deleteDirectory(const std::string &path);
   std::string getBaseDirectory();
 
-  std::vector<char> readFile(const std::string &file_path);
-  void writeFile(const std::string &file_path,const std::vector<char> &data); // sempre adiciona no final do arquivo
-  void createFile(const std::string &file_path);
-  void clearFile(const std::string &file_path);
-  void printFile(const std::string &file_path);
-  void deleteFile(const std::string &file_path);
+  std::vector<char> readFile(const std::string &file_name);
+  void writeFile(
+      const std::string &file_name,
+      const std::vector<char> &data); // sempre adiciona no final do arquivo
+  void createFile(const std::string &file_name);
+  void clearFile(const std::string &file_name);
+  void printFile(const std::string &file_name);
+  void deleteFile(const std::string &file_name);
+  bool isFileExists(const std::string &file_name);
 };
