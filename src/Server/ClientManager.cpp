@@ -51,3 +51,14 @@ void ClientManager::removeDevice(Device *device) {
     std::cerr << "Erro ao remover dispositivo: " << e.what() << std::endl;
   }
 }
+
+void ClientManager::sendFileToDevice(Device *device, const string &file_path) {
+  std::cout << "Enviando arquivo para o dispositivo: " << file_path
+            << std::endl;
+
+  try {
+
+  } catch (const std::exception &e) {
+    std::cerr << "Erro ao enviar arquivo: " << e.what() << std::endl;
+  }
+}

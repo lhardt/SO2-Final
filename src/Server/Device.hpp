@@ -1,5 +1,6 @@
 #pragma once
 #include "ClientManager.hpp"
+#include "FileManager.hpp"
 #include "NetworkManager.hpp"
 #include <atomic>
 #include <iostream>
@@ -24,15 +25,21 @@ private:
   std::thread *command_thread;
   std::thread *push_thread;
   std::thread *file_watcher_thread;
+  FileManager *file_manager;
 
   void commandThread();
   void pushThread();
   void fileWatcherThread();
+  void sendFileToClient(std::string file_path, NetworkManager *choosen_manager);
 
 public:
-  Device(int command_socket_fd, ClientManager *client_manager);
+  Device(int command_socket_fd, ClientManager *client_manager,
+         FileManager *file_manager);
   void start();
   void stop();
   bool isStopRequested();
+  void sendFileTo(std::string file_path); // no socket de comando
+  void sendPushTo(std::string file_path); // no socket de push
+
   ~Device();
 };

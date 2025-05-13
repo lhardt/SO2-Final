@@ -32,4 +32,5 @@ private:
       device_mutex; // Mutex para proteger o acesso à lista de dispositivos
 
   void handle_new_push(string file_path, Device *caller);
+  void sendFileToDevice(Device *device, const string &file_path);
 };

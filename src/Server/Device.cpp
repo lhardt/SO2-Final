@@ -1,11 +1,13 @@
 #include "Device.hpp"
 #include <cstring>
 #include <exception>
+#include <sstream> // Add this include for std::istringstream
 #include <string>
 
 Device::Device(int command_socket_fd, ClientManager *client_manager)
     : stop_requested(false), command_thread(nullptr), push_thread(nullptr),
-      file_watcher_thread(nullptr), client_manager(client_manager) {
+      file_watcher_thread(nullptr), client_manager(client_manager),
+      file_manager(file_manager) {
 
   // Inicializa os sockets
   command_manager = new NetworkManager(command_socket_fd, "CommandManager");
@@ -38,7 +40,8 @@ Device::~Device() {
   delete file_watcher_receiver;
 }
 
-void Device::commandThread() {
+void Device::commandThread() { // thread se comporta recebendo comandos do
+                               // cliente e enviando dados para ele
   try {
     std::cout << "Iniciando thread de comandos..." << std::endl;
     while (!stop_requested) {
@@ -51,7 +54,8 @@ void Device::commandThread() {
   std::cout << "Command thread finished" << std::endl;
 }
 
-void Device::pushThread() {
+void Device::pushThread() { // thread se comporta somente enviando dados ao
+                            // cliente, nao recebe
   try {
     std::cout << "Iniciando thread de push..." << std::endl;
     while (!stop_requested) {
@@ -65,13 +69,54 @@ void Device::pushThread() {
   std::cout << "Push thread finished" << std::endl;
 }
 
-void Device::fileWatcherThread() {
+void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
+                                   // do cliente,nao envia
+  // tipos de pacotes que essa thread pode receber:
+  //  CMD(WRITE/CREATED DELETED)
+  //  DATA
   try {
     std::cout << "Iniciando thread de file watcher..." << std::endl;
     while (!stop_requested) {
+      // interpretar o pacote aqui
+      // tem que fazer uma funcao para interpretar o pacote
+      //  se for CREATED/WRITE
+      //  alocar o buffer
+      //  receber o nome do arquivo
+      //  recebe o vector de char para escrever
+      // formato de pacote: "DOWNLOAD nomeDOarquivo" (payload)
+      // se for DELETED
+      // deletar o arquivo
+
       packet pkt = file_watcher_receiver->receivePacket();
-      // printa payload
       std::cout << "Recebido do dispositivo: " << pkt._payload << std::endl;
+
+      // Extract the first word from the payload
+      std::istringstream payload_stream(pkt._payload);
+      std::string first_word;
+      payload_stream >> first_word;
+
+      std::cout << "Primeira palavra do payload: " << first_word << std::endl;
+
+      // Interpret the packet based on the first word
+      if (first_word == "CREATED") {
+        // Handle DOWNLOAD command
+
+      } else if (first_word == "WRITE") {
+        // Handle DELETED command
+        std::string second_word;
+        payload_stream >> second_word;
+
+        file_manager->clearFile(second_word);
+        bool stop = false;
+        while (!stop) {
+          packet pkt_received = file_watcher_receiver->receivePacket();
+          // recebe o pacote de dados e vai escrevendo
+          // quando receber o end of file stop = true
+        }
+
+      } else if (first_word == "DELETED") {
+        // Handle WRITE command
+      }
     }
   } catch (const std::runtime_error &e) {
     std::cout << "Cliente desconectado: " << e.what() << std::endl;

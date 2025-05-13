@@ -52,7 +52,7 @@ void FileManager::writeFile(const std::string &file_path,
     throw std::runtime_error("Failed to open file: " + file_path);
   }
   file.write(data.data(), data.size());
-}
+} // tem que mudar para sempre dar append no arquivo
 
 void FileManager::printFile(const std::string &file_path) {
   std::cout << "Printing file: " << file_path << std::endl;

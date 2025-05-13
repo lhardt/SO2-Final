@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
+#include <vector>
 
 #define MAX_PACKET_SIZE 2048
 #define DATA 0
@@ -39,6 +40,7 @@ public:
   void sendPacket(uint16_t type, uint16_t seqn, const std::string &payload);
   packet receivePacket();
   void sendFileInChunks(const std::string &filepath, const size_t bufferSize);
+  void sendBufferInChunks(const std::vector<char> &buffer);
   void closeConnection();
   int createAndSetupSocket();
   void acceptConnection();
