@@ -1,22 +1,47 @@
 /**
- * This is the main file for the CLIENT binary. 
- * 
+ * This is the main file for the CLIENT binary.
+ *
  * please only define the main() function here.
  */
-#include "client.hpp"
-#include "logger.hpp"
-#include "constants.hpp"
+#include "Client/client.hpp"
+#include "Server/NetworkManager.hpp"
+#include "logger.h"
+#include <arpa/inet.h>
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <netinet/in.h>
+#include <string>
+#include <sys/inotify.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
-int main(int argc, char** argv){
-	logger_open("logger.log");
-	log_info("Hello from CLIENT, SO2-Final!\n");
+#define SERVER_PORT 4000
+// localhost
+#define SERVER_ADDRESS "127.0.0.1"
 
-	if( argc != 4 ){
-		log_warn("Parameters passed in incorrectly! Usage:\n %s  <username> <server_ip_address> <port> !\n", argv[0]);
-		return 1;
-	}
+int main(int argc, char **argv) {
+  logger_open("logger.log");
+  log_info("Hello from CLIENT, SO2-Final!\n");
 
-	log_info("Will create a client with the following configuration: username=[%s] server=[%s : %s]", argv[1], argv[2], argv[3]);
-	Client client(argv[1], argv[2], argv[3]);
-	return 0;
+  // TODO: get info from argc/argv
+  // primeiro argumento username
+  // segundo argumento ip do servidor
+  // terceiro argumento porta do servidor
+
+  if (argc < 3) {
+    std::cerr << "Uso: " << argv[0] << " <username> <ip> <port>" << std::endl;
+    return -1;
+  }
+  std::string username = argv[1];
+  std::string server_ip = argv[2];
+  std::string server_port = argv[3];
+
+  // send(sock, username.c_str(), username.size(), 0);
+  // std::cout << "Nome de usuário enviado: " << username << std::endl;
+
+  // criar sync_dir
+  Client client(username, server_ip, server_port);
+  return 0;
 }

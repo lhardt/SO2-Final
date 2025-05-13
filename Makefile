@@ -18,7 +18,7 @@ LIBDIR  := lib
 # --------------------
 # Sources
 # --------------------
-SRC 	  := $(wildcard $(SRCDIR)/*.cpp)
+SRC := $(shell find $(SRCDIR) -name '*.cpp')
 SRC_TEST  := $(wildcard $(SRCDIR)/*_test.cpp)
 SRC_MAIN  := $(wildcard $(SRCDIR)/*_main.cpp)
 SRC_OTHER := $(filter-out $(SRC_MAIN) $(SRC_TEST), $(SRC))
@@ -51,7 +51,7 @@ SANITIZE_FLAGS = -fsanitize=undefined,address
 
 # Remove the sanitizer flags from MINGW-based systems.
 UNAME:= $(shell uname)
-IS_MINGW:=$(shell if [[ $(UNAME) == *"MINGW"* ]]; then echo 1; else echo 0; fi;)
+IS_MINGW:=$(shell if [ "$(echo $(UNAME) | grep MINGW)" ]; then echo 1; else echo 0; fi;)
 ifeq ($(IS_MINGW) ,  1)
 	SANITIZE_FLAGS:=
 endif
@@ -64,11 +64,17 @@ all: $(TRG_MAIN)
 run: $(TARGET)
 	./run.sh
 
+run-server: $(BINDIR)/server
+	./bin/server
+
+run-client: $(BINDIR)/client
+	./bin/client
+
 clean:
 	-rm $(OBJ) $(TARGET)
 
 folders:
-	-@mkdir lib inc obj bin 2>/dev/null | true 
+	-@mkdir -p lib inc obj obj/Server obj/Connection obj/Client bin 2>/dev/null | true
 
 test: $(TRG_TEST)
 	./bin/test
