@@ -4,7 +4,7 @@
  * please only define the main() function here.
  */
 #include "Server/Server.hpp"
-#include "logger.h"
+#include "logger.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <iostream>
