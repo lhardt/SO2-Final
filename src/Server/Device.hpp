@@ -12,20 +12,18 @@ class ClientManager;
 
 class Device {
 private:
-  std::atomic<bool>
-      stop_requested; // Flag para controlar a execução das threads
-  NetworkManager
-      *push_manager; // socket para lidar com push para os outros dispositivos
-  NetworkManager
-      *command_manager; // socket que recebe comando do cliente e arquivos
-  NetworkManager
-      *file_watcher_receiver; // socket que recebe quando um arquivo é alterado
+  std::atomic<bool> stop_requested; // Flag para controlar a execução das threads
+  std::atomic<bool> send_push;
+  NetworkManager *push_manager; // socket para lidar com push para os outros dispositivos
+  NetworkManager *command_manager; // socket que recebe comando do cliente e arquivos
+  NetworkManager *file_watcher_receiver; // socket que recebe quando um arquivo é alterado
 
   ClientManager *client_manager; // cliente que possui o dispositivo
   std::thread *command_thread;
   std::thread *push_thread;
   std::thread *file_watcher_thread;
   FileManager *file_manager;
+  std::string push_file;
 
   void commandThread();
   void pushThread();
@@ -39,7 +37,8 @@ public:
   void stop();
   bool isStopRequested();
   void sendFileTo(std::string file_path); // no socket de comando
-  void sendPushTo(std::string file_path); // no socket de push
-
+  void sendPushTo(std::string &file_path); // no socket de push
+  void buildFile(std::string &file_name);
+  
   ~Device();
 };

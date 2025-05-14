@@ -6,9 +6,8 @@
 #include <sstream> // Add this include for std::istringstream
 #include <string>
 
-Device::Device(int command_socket_fd, ClientManager *client_manager,
-               FileManager *file_manager)
-    : stop_requested(false), command_thread(nullptr), push_thread(nullptr),
+Device::Device(int command_socket_fd, ClientManager *client_manager, FileManager *file_manager)
+    : stop_requested(false), send_push(false),command_thread(nullptr), push_thread(nullptr),
       file_watcher_thread(nullptr), client_manager(client_manager),
       file_manager(file_manager) {
 
@@ -112,7 +111,14 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
   try {
     std::cout << "Iniciando thread de push..." << std::endl;
     while (!stop_requested) {
-      // push_manager->receivePacket();
+      
+      if(this->send_push){
+        std::cout<<"MANDANDO PUSH PARA DEVICE...\n";
+        push_manager->sendFileInChunks(this->push_file,MAX_PACKET_SIZE,*file_manager);
+        std::cout<<"TERMINOU O PUSH...\n";
+      }
+      this->send_push=false;
+      
     }
   } catch (const std::runtime_error &e) {
     stop_requested = true;
@@ -121,6 +127,8 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
   }
   std::cout << "Push thread finished" << std::endl;
 }
+
+
 
 void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
                                    // do cliente,nao envia
@@ -152,46 +160,61 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
       std::cout << "Primeira palavra do payload: " << first_word << std::endl;
 
       // Interpret the packet based on the first word
-      if (first_word == "CREATED") { // CREATED =
+      if (first_word == "CREATED") { 
 
-        std::string second_word;
-        payload_stream >> second_word;
-        file_manager->createFile(second_word);
+        std::string file_name;
+        payload_stream >> file_name;
+        file_manager->createFile(file_name);
 
       } else if (first_word == "WRITE") {
+        
+        // VERIFICAR SE O ARQUIVO FOI ATUALIZADO
 
-        std::string second_word;
-        payload_stream >> second_word;
-        file_manager->clearFile(second_word);
-        if (!file_manager->isFileExists(second_word)) {
-          file_manager->createFile(second_word);
-        }
-        bool stop = false;
-        std::cout << "recebendo arquivo: " << second_word << std::endl;
-        while (!stop) {
-          packet pkt_received = file_watcher_receiver->receivePacket();
-          std::cout << "Recebido do dispositivo: " << pkt_received._payload
-                    << std::endl;
-          if (std::string(pkt_received._payload, pkt_received.length) ==
-              "END_OF_FILE") {
-            stop = true;
-            break;
-          } else {
-            std::cout << "Waiting for more Data..." << std::endl;
+        
+        std::string file_name;
+        payload_stream >> file_name;
+
+
+        if (!file_manager->isFileExists(file_name)) {
+          file_manager->createFile(file_name);
+          buildFile(file_name); // FUNCAO QUE RECEBE PACOTES E VAI ESCREVENDO EM ARQUIVO
+        }else{
+          //recebe uma copia do arquivo e verifica se mudou o hash
+          std::cout<<"verificando HASH..."<<std::endl;
+          std::string copy_name="copy_"+file_name;
+          file_manager->createFile(copy_name);
+          buildFile(copy_name);
+          std::cout<<"TERMINOU DE RECEBER A COPIA"<<std::endl;
+          
+          std::string path_original="./sync_dir_"+this->client_manager->getUsername()+"/"+file_name;
+          std::string path_copy="./sync_dir_"+this->client_manager->getUsername()+"/"+copy_name;
+          if(file_manager->checkFileHashchanged(path_original,path_copy)){
+            //sobrescreve o arquivo original pela copia
+            std::cout<<"Mudou o HASH..."<<std::endl;
+            file_manager->deleteFile(file_name);
+            file_manager->renameFile(path_copy,path_original);
+
+          this->client_manager->handle_new_push(file_name,this);
           }
-          std::vector<char> data(pkt_received._payload,
-                                 pkt_received._payload + pkt_received.length);
-          file_manager->writeFile(second_word, data);
+          else{
+            //deleta a copia
+            std::cout<<"Não mudou o HASH..."<<std::endl;
+            file_manager->deleteFile(copy_name);
+          }
+
         }
-        std::cout << "escrito no arquivo: " << second_word << std::endl;
+
+        //file_manager->clearFile(file_name);
+
+        std::cout << "escrito no arquivo: " << file_name << std::endl;
 
       } else if (first_word == "DELETE") {
-        std::string second_word;
-        payload_stream >> second_word;
+        std::string file_name;
+        payload_stream >> file_name;
         // verifica se o arquivo existe antes de deletar
-        if (file_manager->isFileExists(second_word)) {
-          std::cout << "deletando arquivo: " << second_word << std::endl;
-          file_manager->deleteFile(second_word);
+        if (file_manager->isFileExists(file_name)) {
+          std::cout << "deletando arquivo: " << file_name << std::endl;
+          file_manager->deleteFile(file_name);
         }
       }
     }
@@ -256,3 +279,41 @@ void Device::stop() {
 }
 
 bool Device::isStopRequested() { return stop_requested; }
+
+
+
+//void sendFileTo(std::string &file_path);
+
+
+
+void Device::sendPushTo(std::string &file_path){
+  // // vai criar uma nova thread executando a funcao sendFileInChunks do push_manager
+  // std::thread send_thread([this, file_path]() {
+  //   push_manager->sendFileInChunks(file_path, MAX_PACKET_SIZE, *file_manager);
+  // })
+  std::cout<<"MANDANDO PUSH PARA DEVICE\n";
+  this->push_file=file_path;
+  this->send_push=true;
+  // push_thread = new thread(&Device::pushThread, this);
+  
+}
+
+void Device::buildFile(std::string &file_name){
+  bool stop = false;
+          std::cout << "recebendo arquivo: " << file_name << std::endl;
+          while (!stop) {
+            packet pkt_received = file_watcher_receiver->receivePacket();
+            std::cout << "Recebido do dispositivo: " << pkt_received._payload
+                      << std::endl;
+            if (std::string(pkt_received._payload, pkt_received.length) ==
+                "END_OF_FILE") {
+              stop = true;
+              break;
+            } else {
+              std::cout << "Waiting for more Data..." << std::endl;
+            }
+
+            std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
+            file_manager->writeFile(file_name, data);
+          }
+}

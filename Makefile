@@ -47,6 +47,7 @@ TARGET    := $(TRG_MAIN) $(TRG_TEST)
 # Address sanitizers are REALLY helpful, but they aren't available on MINGW.
 CXXFLAGS:= -O2 -Iinc -Wall -g -Wall -Wextra -Wno-sign-compare
 SANITIZE_FLAGS = -fsanitize=undefined,address
+LDFLAGS := -lcrypto
 
 
 # Remove the sanitizer flags from MINGW-based systems.
@@ -85,6 +86,7 @@ obj/%.o: src/%.cpp | folders
 
 
 $(TRG_MAIN): $(OBJ_MAIN) $(OBJ_OTHER)
-	g++ -o $@ $(@:$(BINDIR)/%=$(OBJDIR)/%_main.o) $(OBJ_OTHER) $(LIB) $(CXXFLAGS) $(SANITIZE_FLAGS)
+	g++ -o $@ $(@:$(BINDIR)/%=$(OBJDIR)/%_main.o) $(OBJ_OTHER) $(LIB) $(CXXFLAGS) $(SANITIZE_FLAGS) $(LDFLAGS)
+
 
 
