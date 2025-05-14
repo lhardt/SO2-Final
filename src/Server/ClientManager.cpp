@@ -21,7 +21,10 @@ void ClientManager::handle_new_connection(int socket) {
     }
     std::cout << "CRIANDO NOVO DEVICE\n";
     Device *device = new Device(socket, this, file_manager);
+    //da lock
+    std::lock_guard<std::mutex> lock(device_mutex);
     devices.push_back(device);
+    device_mutex.unlock();
     std::cout << "Devices: " << devices.size() << std::endl;
     device->start();
     std::cout << "Devices: " << devices.size() << std::endl;

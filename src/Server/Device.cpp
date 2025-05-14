@@ -145,6 +145,8 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
         std::cout<<"TERMINOU O PUSH...\n";
 
         this->send_push=false;
+        //TERMINA LOCK
+        push_lock.unlock();
       }
   
     }
@@ -242,8 +244,6 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
         if (file_manager->isFileExists(file_name)) {
           std::cout << "deletando arquivo: " << file_name << std::endl;
           file_manager->deleteFile(file_name);
-        std::string delete_command=first_word+" "+file_name;
-        this->client_manager->handle_new_push(delete_command,this);
         }
       }
     }
@@ -272,11 +272,12 @@ void Device::start() {
   client_manager->removeDevice(this);
 }
 
+
+
 void Device::stop() {
   stop_requested = true;
 
-  std::cout << "Parando dispositivo...stop_requested: " << stop_requested
-            << std::endl;
+  std::cout << "Parando dispositivo...stop_requested: " << stop_requested << std::endl;
   // Fechar conexões de socket
   command_manager->closeConnection();
   push_manager->closeConnection();
@@ -320,6 +321,7 @@ void Device::sendPushTo(std::string &command){
   // std::thread send_thread([this, file_path]() {
   //   push_manager->sendFileInChunks(file_path, MAX_PACKET_SIZE, *file_manager);
   // })
+  push_lock.lock();
   this->push_command=command;
   this->send_push=true;
   // push_thread = new thread(&Device::pushThread, this);

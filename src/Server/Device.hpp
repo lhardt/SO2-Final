@@ -17,6 +17,7 @@ private:
   NetworkManager *push_manager; // socket para lidar com push para os outros dispositivos
   NetworkManager *command_manager; // socket que recebe comando do cliente e arquivos
   NetworkManager *file_watcher_receiver; // socket que recebe quando um arquivo é alterado
+  std::mutex push_lock;
 
   ClientManager *client_manager; // cliente que possui o dispositivo
   std::thread *command_thread;

@@ -118,7 +118,9 @@ void Server::run() {
 void Server::createNewManager(string username, int sock_file_descriptor) {
   // cria um novo manager e entrega o socket para ele
   ClientManager *manager = new ClientManager(username);
+  clients_mutex.lock();
   clients.push_back(manager); // adiciona o manager a lista de clientes
+  clients_mutex.unlock();
   deliverToManager(manager,
                    sock_file_descriptor); // entrega o socket para o manager
 }
