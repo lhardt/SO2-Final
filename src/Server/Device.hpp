@@ -23,7 +23,7 @@ private:
   std::thread *push_thread;
   std::thread *file_watcher_thread;
   FileManager *file_manager;
-  std::string push_file;
+  std::string push_command;
 
   void commandThread();
   void pushThread();

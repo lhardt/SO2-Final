@@ -35,10 +35,10 @@ string ClientManager::getUsername() {
   return this->username;
 }
 
-void ClientManager::handle_new_push(string file_path, Device *caller) {
+void ClientManager::handle_new_push(string command, Device *caller) {
   for(auto device:this->devices){
     if(device != caller) 
-    device->sendPushTo(file_path);
+    device->sendPushTo(command);
   }
   
 }

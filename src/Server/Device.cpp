@@ -20,11 +20,14 @@ Device::Device(int command_socket_fd, ClientManager *client_manager, FileManager
   int port1 = push_manager->createAndSetupSocket();
   std::string command = "PORT " + std::to_string(port1);
   command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end())); // Envia o comando para o cliente com a porta do push_manager
+  std::cout<<"porta do push: " + std::to_string(port1);
 
   int port2 = file_watcher_receiver->createAndSetupSocket();
   std::string command2 = "PORT " + std::to_string(port2);
   command_manager->sendPacket(CMD, 1, std::vector<char>(command2.begin(), command2.end())); // Envia o comando para o cliente com a
+  std::cout<<"porta do watcher: " + std::to_string(port2);
 
+  push_manager->acceptConnection();
   file_watcher_receiver->acceptConnection();
 }
 
@@ -33,6 +36,8 @@ Device::~Device() {
   delete push_manager;
   delete file_watcher_receiver;
 }
+
+
 
 void Device::commandThread() { // thread se comporta recebendo comandos do
                                // cliente e enviando dados para ele
@@ -106,6 +111,8 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
   std::cout << "Command thread finished" << std::endl;
 }
 
+
+
 void Device::pushThread() { // thread se comporta somente enviando dados ao
                             // cliente, nao recebe
   try {
@@ -113,12 +120,32 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
     while (!stop_requested) {
       
       if(this->send_push){
-        std::cout<<"MANDANDO PUSH PARA DEVICE...\n";
-        push_manager->sendFileInChunks(this->push_file,MAX_PACKET_SIZE,*file_manager);
+        
+        std::cout<<"COMANDO DO PUSH: "+this->push_command<<std::endl;
+        std::istringstream payload_stream(this->push_command);
+        // primeira palavra do push_command (PUSH ou DELETE)
+        std::string command_keyword;
+        payload_stream >> command_keyword;
+        
+        if (command_keyword == "WRITE") {
+
+          std::string file_name;
+          payload_stream >> file_name;
+          std::cout<<"MANDANDO PUSH PARA DEVICE...\n";
+          push_manager->sendPacket(CMD,1,vector<char>(push_command.begin(),push_command.end()));
+          push_manager->sendFileInChunks(file_name,MAX_PACKET_SIZE,*file_manager);
+
+        }else if (command_keyword == "DELETE"){
+
+          push_manager->sendPacket(CMD,1,vector<char>(push_command.begin(),push_command.end()));
+          
+        }
+
         std::cout<<"TERMINOU O PUSH...\n";
+
+        this->send_push=false;
       }
-      this->send_push=false;
-      
+  
     }
   } catch (const std::runtime_error &e) {
     stop_requested = true;
@@ -194,16 +221,15 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
             file_manager->deleteFile(file_name);
             file_manager->renameFile(path_copy,path_original);
 
-          this->client_manager->handle_new_push(file_name,this);
+            std::cout<<"mandando handle new push com payload: "<<pkt._payload<<std::endl;
+            this->client_manager->handle_new_push(pkt._payload,this);
           }
           else{
             //deleta a copia
             std::cout<<"Não mudou o HASH..."<<std::endl;
             file_manager->deleteFile(copy_name);
           }
-
         }
-
         //file_manager->clearFile(file_name);
 
         std::cout << "escrito no arquivo: " << file_name << std::endl;
@@ -216,6 +242,8 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
           std::cout << "deletando arquivo: " << file_name << std::endl;
           file_manager->deleteFile(file_name);
         }
+        std::string delete_command=first_word+" "+file_name;
+        this->client_manager->handle_new_push(delete_command,this);
       }
     }
   } catch (const std::runtime_error &e) {
@@ -286,13 +314,12 @@ bool Device::isStopRequested() { return stop_requested; }
 
 
 
-void Device::sendPushTo(std::string &file_path){
+void Device::sendPushTo(std::string &command){
   // // vai criar uma nova thread executando a funcao sendFileInChunks do push_manager
   // std::thread send_thread([this, file_path]() {
   //   push_manager->sendFileInChunks(file_path, MAX_PACKET_SIZE, *file_manager);
   // })
-  std::cout<<"MANDANDO PUSH PARA DEVICE\n";
-  this->push_file=file_path;
+  this->push_command=command;
   this->send_push=true;
   // push_thread = new thread(&Device::pushThread, this);
   

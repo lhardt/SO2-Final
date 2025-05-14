@@ -17,7 +17,7 @@ public:
 
   void handleIoThread();
   void handleFileThread();
-  void handleNetworkThread();
+  void handlePushThread();
 
   std::thread io_thread;
   std::thread file_thread;
