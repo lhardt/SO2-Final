@@ -60,6 +60,16 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
       } else if (command_keyword == "DOWNLOAD") {
         std::string file_name;
         payload_stream >> file_name;
+        // verifica se o arquivo existe
+        if (!file_manager->isFileExists(file_name)) {
+          std::string command = "FILE_NOT_FOUND";
+          command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          std::cout << "Terminando o download, arquivo não encontrado\n";
+          continue;
+        } else {
+          std::string command = "FILE_FOUND";
+          command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+        }
         command_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE,
                                           *file_manager);
 
@@ -92,6 +102,7 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
         command_manager->sendPacket(DATA, 1, vector<char>(fim.begin(), fim.end()));
         std::string end_of_file = "END_OF_FILE";
         command_manager->sendPacket(CMD, 1, vector<char>(end_of_file.begin(), end_of_file.end()));
+        std::cout << "Terminando o LIST\n";
       } else {
         cout << "TA ERRADO!\n";
       }

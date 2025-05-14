@@ -86,7 +86,14 @@ void Client::handleIoThread() {
       std::string command = "DOWNLOAD " + file_name;
 
       command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
-
+      // espera resposta do servidor...
+      packet response = command_manager->receivePacket();
+      if (std::string(response._payload, response.length) == "FILE_NOT_FOUND") {
+        std::cout << "Arquivo não encontrado no servidor." << std::endl;
+        continue;
+      } else if (std::string(response._payload, response.length) == "FILE_FOUND") {
+        std::cout << "Arquivo encontrado no servidor." << std::endl;
+      }
       curr_directory_file_manager->createFile(file_name);
       bool stop = false;
 
