@@ -2,9 +2,11 @@
 #include "../Server/NetworkManager.hpp"
 #include "../constants.hpp"
 #include "../logger.hpp"
+#include "../Server/FileManager.hpp"
 #include <arpa/inet.h>
 #include <chrono>
 #include <cstdlib>
+#include <string>
 #include <filesystem>
 #include <iostream>
 #include <netinet/in.h>
@@ -15,12 +17,14 @@
 #include <unistd.h>
 
 using namespace std;
+namespace fs = std::filesystem;
 
 std::regex upl("upload ([a-zA-Z0-9_/\\.]+)"),
     dow("download ([a-zA-Z0-9_/\\.]+)"), del("delete ([a-zA-Z0-9_/\\.]+)"),
     lsr("list_server"), lcl("list_client"), gsd("get_sync_dir"), ext("exit");
 
 void g_handleIoThread(Client *client) {
+  std::cout<<"chegou no handle\n";
   log_assert(client != NULL, "Null client!");
   client->handleIoThread();
 }
@@ -33,35 +37,125 @@ void g_handleNetworkThread(Client *client) {
   client->handleNetworkThread();
 }
 
+
+
 void Client::handleIoThread() {
   log_info("Started IO Thread with ID %d ", std::this_thread::get_id());
   // use std::getline and add to a queue of commands?
   string cmdline;
   smatch cmdarg;
+  // this->io_thread = std::thread(g_handleIoThread, this);
+  FileManager file_manager("sync_dir");
+  // this->network_thread = std::thread(g_handleNetworkThread, this);
+
+
+
+  std::cout<<"esperando comando...";
   while (getline(cin, cmdline)) {
+    std::cout<<"PASSOU DO GETLINE\n";
     if (regex_match(cmdline, cmdarg, upl)) {
-      // FAZER FUNÇÃO QUE ENVIA ARQUIVO PARA SERVIDOR EM UMA connections.cpp (ou
-      // algo assim) uploadFile(sock, cmdarg[1].str())
-    } else if (regex_match(cmdline, cmdarg, dow)) {
-      // FAZER FUNÇÃO QUE ENVIA NOME DE ARQUIVO PARA SERVIDOR E O BAIXA EM UMA
-      // connections.cpp (ou algo assim) downloadFile(sock, cmdarg[1].str());
+      std::string file_path = cmdarg[1].str();
+      // std::string command = "UPLOAD " + file_name;
+
+      // command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));  // UPLOAD filename
+      // command_manager->sendFileInChunks(file_name,MAX_PACKET_SIZE);
+
+      // //confirmacao do server que recebeu o arquivo
+      // packet response=command_manager->receivePacket();
+
+      // //verifica se a resposta é "OKAY"
+
+      // Caminho completo do arquivo a ser movido
+      fs::path arquivo =file_path; 
+
+      // Diretório de destino
+      fs::path destino_dir = "sync_dir";
+
+      try {
+          // Garante que o diretório de destino existe
+          fs::create_directories(destino_dir);
+
+          // Cria o caminho final no destino mantendo o mesmo nome do arquivo
+          fs::path destino_final = destino_dir / arquivo.filename();
+
+          // Move o arquivo
+          fs::rename(arquivo, destino_final);
+
+          std::cout << "Arquivo movido para " << destino_final << std::endl;
+      } catch (const fs::filesystem_error& e) {
+          std::cerr << "Erro ao mover o arquivo: " << e.what() << std::endl;
+      }
+    }
+    else if (regex_match(cmdline, cmdarg, dow)) {
+      std::cout<<"DOWNLOAD\n";
+      std::string file_name = cmdarg[1].str();
+      std::string command = "DOWNLOAD " + file_name;
+      
+      command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
+      packet response = command_manager->receivePacket();
+      
+      file_manager.createFile(file_name);
+      bool stop = false;
+
+      while (!stop){
+        packet pkt_received = command_manager->receivePacket();
+        std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
+        if (std::string(pkt_received._payload, pkt_received.length) ==
+            "END_OF_FILE") {
+          stop = true;
+          break;
+        }else {
+          std::cout << "Waiting for more Data..." << std::endl;
+        }
+        std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
+        file_manager.writeFile(file_name, data);
+      }
+
     } else if (regex_match(cmdline, cmdarg, del)) {
-      // FAZER FUNÇÃO QUE ENVIA NOME DE ARQUIVO PARA SERVIDOR E ENVIA ALGUMA
-      // FLAG PARA DELETAR EM UMA connections.cpp (ou algo assim)
-      // deleteFile(sock, cmdarg[1].str());
+      std::string file_name = cmdarg[1].str();
+      std::string command = "DELETE " + file_name;
+      command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
+      file_manager.deleteFile(file_name);
+
     } else if (regex_match(cmdline, cmdarg, lsr)) {
-      // FAZER FUNÇÃO QUE ENVIA COMANDO DE LISTAR ARQUIVOS EM UMA
-      // connections.cpp (ou algo assim) listServer(sock);
+      bool stop = false;
+      std::cout<<"MANDANDO LIST SERVER\n";
+      std::string command = "LIST";
+      command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
+      while(!stop){
+        packet pkt_received=command_manager->receivePacket();
+        if (std::string(pkt_received._payload, pkt_received.length) ==
+            "END_OF_FILE") {
+          stop = true;
+          break;
+        }else {
+          std::cout << "Waiting for more Data..." << std::endl;
+        }
+        std::vector<char> data_filenames(pkt_received._payload, pkt_received._payload + pkt_received.length);
+        //vector<char> é um string no formato "teste1.txt teste2.pdf"
+        std::cout << std::string(data_filenames.begin(),data_filenames.end());
+      }
     } else if (regex_match(cmdline, cmdarg, lcl)) {
       // listClient()
+      std::string command = "LIST";
+     command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
+     //esperar resposta do servidor...
+     packet pkt=command_manager->receivePacket();
+     std::cout<<"pkt payload: ";
+     
     } else if (regex_match(cmdline, cmdarg, gsd)) {
       // getSyncDir();
-    } else if (regex_match(cmdline, cmdarg, ext))
+    } else if (regex_match(cmdline, cmdarg, ext)){
       exit(0);
-    else
+    }  
+    else{
       log_info("Unrecognized command, please try again.");
+    }
   }
 }
+
+
+
 void Client::handleFileThread() {
   log_info("Started File Thread with ID %d ", std::this_thread::get_id());
   static constexpr char *sync_dir = "sync_dir";
@@ -200,6 +294,8 @@ void Client::handleNetworkThread() {
   // check a queue of commands?
 }
 
+
+
 Client::Client(std::string _client_name, std::string _server_ip,
                std::string _server_port)
     : client_name(_client_name), server_ip(_server_ip),
@@ -227,14 +323,14 @@ Client::Client(std::string _client_name, std::string _server_ip,
     std::cerr << "Endereço inválido ou não suportado" << std::endl;
   }
 
-  // Conectar ao servidor
+  // Conectar ao servidor 
   if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     std::cerr << "Falha ao conectar ao servidor" << std::endl;
   }
 
   std::cout << "Conectado ao servidor!" << std::endl;
 
-  this->command_manager = new NetworkManager(sock, "CommandManager");
+  this->command_manager = new NetworkManager(sock, "CommandManager"); //é o socket de commandos, tem que passar para a thread de IO
   std::string command = client_name;
   command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
 
@@ -263,7 +359,9 @@ Client::Client(std::string _client_name, std::string _server_ip,
     std::cout << "Diretório criado: " << sync_dir << std::endl;
   }
 
-  // this->io_thread = std::thread(g_handleIoThread, this);
+
+
+  this->io_thread = std::thread(g_handleIoThread, this);
   // this->network_thread = std::thread(g_handleNetworkThread, this);
   this->file_thread = std::thread(g_handleFileThread, this);
 
