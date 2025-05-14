@@ -247,6 +247,8 @@ void Client::handleFileThread() {
           log_info("Arquivo removido: %s", filepath.c_str());
           // FAZER FUNÇÃO QUE ENVIA NOME DO ARQUIVO A SER DELETADO EM UMA
           // connections.cpp (ou algo assim) deleteFile(sock, event->name)
+          std::string command = "DELETE " + std::string(event->name);
+          file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
         }
       }
 

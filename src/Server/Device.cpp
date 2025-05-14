@@ -26,12 +26,7 @@ Device::Device(int command_socket_fd, ClientManager *client_manager,
   std::string command2 = "PORT " + std::to_string(port2);
   command_manager->sendPacket(CMD, 1, std::vector<char>(command2.begin(), command2.end())); // Envia o comando para o cliente com a
 
-  // push_manager->acceptConnection();
-  std::cout << "AAAAAA" << std::endl;
   file_watcher_receiver->acceptConnection();
-
-  // std::cout << "Recebido do dispositivo: " << pkt._payload << std::endl;
-  // std::cout << "Recebido do dispositivo: " << pkt2._payload << std::endl;
 }
 
 Device::~Device() {
@@ -60,11 +55,9 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
       } else if (command_keyword == "DOWNLOAD") {
         std::string file_name;
         payload_stream >> file_name;
-        // verifica se o arquivo existe
         if (!file_manager->isFileExists(file_name)) {
           std::string command = "FILE_NOT_FOUND";
           command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
-          std::cout << "Terminando o download, arquivo não encontrado\n";
           continue;
         } else {
           std::string command = "FILE_FOUND";
@@ -192,10 +185,14 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
         }
         std::cout << "escrito no arquivo: " << second_word << std::endl;
 
-      } else if (first_word == "DELETED") {
+      } else if (first_word == "DELETE") {
         std::string second_word;
         payload_stream >> second_word;
-        file_manager->deleteFile(second_word);
+        // verifica se o arquivo existe antes de deletar
+        if (file_manager->isFileExists(second_word)) {
+          std::cout << "deletando arquivo: " << second_word << std::endl;
+          file_manager->deleteFile(second_word);
+        }
       }
     }
   } catch (const std::runtime_error &e) {
