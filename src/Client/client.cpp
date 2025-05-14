@@ -19,20 +19,24 @@
 using namespace std;
 namespace fs = std::filesystem;
 
-std::regex upl("upload ([a-zA-Z0-9_/\\.]+)"),
-    dow("download ([a-zA-Z0-9_/\\.]+)"), del("delete ([a-zA-Z0-9_/\\.]+)"),
-    lsr("list_server"), lcl("list_client"), gsd("get_sync_dir"), ext("exit");
 
-void g_handleIoThread(Client *client) {
+
+std::regex upl("upload ([a-zA-Z0-9_/\\.]+)"),
+  dow("download ([a-zA-Z0-9_/\\.]+)"), del("delete ([a-zA-Z0-9_/\\.]+)"),
+  lsr("list_server"), lcl("list_client"), gsd("get_sync_dir"), ext("exit");
+
+
+
+void g_handleIoThread(Client *client){
   std::cout<<"chegou no handle\n";
   log_assert(client != NULL, "Null client!");
   client->handleIoThread();
 }
-void g_handleFileThread(Client *client) {
+void g_handleFileThread(Client *client){
   log_assert(client != NULL, "Null client!");
   client->handleFileThread();
 }
-void g_handleNetworkThread(Client *client) {
+void g_handleNetworkThread(Client *client){
   log_assert(client != NULL, "Null client!");
   client->handleNetworkThread();
 }
@@ -122,19 +126,22 @@ void Client::handleIoThread() {
       std::cout<<"MANDANDO LIST SERVER\n";
       std::string command = "LIST";
       command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
+
       while(!stop){
         packet pkt_received=command_manager->receivePacket();
-        if (std::string(pkt_received._payload, pkt_received.length) ==
-            "END_OF_FILE") {
+
+        if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
           stop = true;
           break;
-        }else {
+        }else{
           std::cout << "Waiting for more Data..." << std::endl;
         }
+
         std::vector<char> data_filenames(pkt_received._payload, pkt_received._payload + pkt_received.length);
         //vector<char> é um string no formato "teste1.txt teste2.pdf"
         std::cout << std::string(data_filenames.begin(),data_filenames.end());
       }
+
     } else if (regex_match(cmdline, cmdarg, lcl)) {
       // listClient()
       std::string command = "LIST";
@@ -247,6 +254,7 @@ void Client::handleFileThread() {
       }
 
       i += sizeof(struct inotify_event) + event->len;
+
     }
   }
 }
@@ -255,7 +263,7 @@ void Client::handleNetworkThread() {
   log_info("Started Network Thread with ID %d ", std::this_thread::get_id());
 
   int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (socket_fd < 0) {
+  if (socket_fd < 0){
     int error = errno;
     log_error("Could not create socket! errno=%d ", error);
     std::exit(1);

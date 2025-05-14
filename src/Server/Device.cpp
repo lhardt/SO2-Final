@@ -54,10 +54,7 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
       std::cout<<"COMANDO RECEBIDO: "<<command_keyword<<std::endl;
 
       if(command_keyword=="UPLOAD"){
-        /*std::string file_name;
-        payload_stream >> file_name;
-
-        if(file_manager->isFileExists())*/
+      
         continue;
 
       }
@@ -76,7 +73,6 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
       else if(command_keyword=="LIST"){
         namespace fs = std::filesystem;
         fs::path diretorio = "sync_dir_"+client_manager->getUsername();
-
         std::ostringstream oss;
 
         try {
