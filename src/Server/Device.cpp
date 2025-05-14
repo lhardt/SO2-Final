@@ -75,7 +75,8 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
         payload_stream >> file_name;
         file_manager->deleteFile(file_name);
 
-      } else if (command_keyword == "LIST") {
+      }
+       else if (command_keyword == "LIST") {
         namespace fs = std::filesystem;
         fs::path diretorio = "sync_dir_" + client_manager->getUsername();
         std::ostringstream oss;
@@ -241,9 +242,9 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
         if (file_manager->isFileExists(file_name)) {
           std::cout << "deletando arquivo: " << file_name << std::endl;
           file_manager->deleteFile(file_name);
-        }
         std::string delete_command=first_word+" "+file_name;
         this->client_manager->handle_new_push(delete_command,this);
+        }
       }
     }
   } catch (const std::runtime_error &e) {

@@ -106,7 +106,7 @@ void Client::handleIoThread() {
     } else if (regex_match(cmdline, cmdarg, del)) {
       std::string file_name = cmdarg[1].str();
       std::string command = "DELETE " + file_name;
-      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      // command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
       sync_dir_file_manager->deleteFile(file_name);
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
@@ -249,6 +249,8 @@ void Client::handleFileThread() {
   }
 }
 
+
+
 void Client::handlePushThread() {
   // OBJETIVO: RECEBE OS DADOS DO SERVIDOR E TRATA DE ACORDO
   log_info("INICIANDO THREAD PUSH");
@@ -312,6 +314,7 @@ void Client::handlePushThread() {
     }else if(command=="DELETE"){
 
       std::string file_name;
+      std::cout<<"DELETEANDO ARQUIVO ATRAVES DE PUSH"<<std::endl;
       payload_stream >> file_name;
       sync_dir_file_manager->deleteFile(file_name);
       
