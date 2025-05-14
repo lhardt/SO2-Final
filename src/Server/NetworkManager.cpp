@@ -55,7 +55,9 @@ void NetworkManager::sendPacket(uint16_t type, uint16_t seqn, const std::vector<
   pkt.total_size = HEADER_SIZE + pkt.length;
 
   pkt._payload = new char[payload.size()];
-  std::memcpy(pkt._payload, payload.data(), payload.size());
+  if (pkt._payload != nullptr) {
+    std::memcpy(pkt._payload, payload.data(), payload.size());
+  }
 
   sendPacket(&pkt);
 
@@ -165,7 +167,7 @@ void NetworkManager::receivePayload(packet &pkt) {
 packet NetworkManager::receivePacket() {
   checkSocketInitialized();
 
-  std::cout <<this->name<< " Aguardando pacote..." << std::endl;
+  std::cout << this->name << " Aguardando pacote..." << std::endl;
   auto header_buffer = receiveHeader();
   packet pkt = deserializeHeader(header_buffer.get());
 
@@ -174,9 +176,7 @@ packet NetworkManager::receivePacket() {
   return pkt;
 }
 
-void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t bufferSize) {
-  FileManager fileManager(
-      "sync_dir"); // Ajuste o diretório base conforme necessário
+void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t bufferSize, FileManager &fileManager) {
 
   try {
     // Lê o arquivo inteiro como um vetor de bytes

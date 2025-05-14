@@ -1,8 +1,8 @@
 #include "Device.hpp"
 #include "FileManager.hpp"
 #include <cstring>
-#include <filesystem>
 #include <exception>
+#include <filesystem>
 #include <sstream> // Add this include for std::istringstream
 #include <string>
 
@@ -45,54 +45,54 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
   try {
     std::cout << "Iniciando thread de comandos..." << std::endl;
     while (!stop_requested) {
-      packet pkt=command_manager->receivePacket();
-      //interpretar os comandos
+      packet pkt = command_manager->receivePacket();
+      // interpretar os comandos
       std::istringstream payload_stream(pkt._payload);
       std::string command_keyword;
       payload_stream >> command_keyword;
 
-      std::cout<<"COMANDO RECEBIDO: "<<command_keyword<<std::endl;
+      std::cout << "COMANDO RECEBIDO: " << command_keyword << std::endl;
 
-      if(command_keyword=="UPLOAD"){
-      
+      if (command_keyword == "UPLOAD") {
+
         continue;
 
-      }
-      else if(command_keyword=="DOWNLOAD"){
+      } else if (command_keyword == "DOWNLOAD") {
         std::string file_name;
         payload_stream >> file_name;
-        command_manager->sendFileInChunks(file_name,MAX_PACKET_SIZE);
+        command_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE,
+                                          *file_manager);
 
-      }
-      else if(command_keyword=="DELETE"){
+      } else if (command_keyword == "DELETE") {
         std::string file_name;
         payload_stream >> file_name;
         file_manager->deleteFile(file_name);
 
-      }
-      else if(command_keyword=="LIST"){
+      } else if (command_keyword == "LIST") {
         namespace fs = std::filesystem;
-        fs::path diretorio = "sync_dir_"+client_manager->getUsername();
+        fs::path diretorio = "sync_dir_" + client_manager->getUsername();
         std::ostringstream oss;
 
         try {
-            for (const auto& entry : fs::directory_iterator(diretorio)) {
-                if (entry.is_regular_file()) {
-                    oss << entry.path().filename().string() << " ";
-                }
+          for (const auto &entry : fs::directory_iterator(diretorio)) {
+            if (entry.is_regular_file()) {
+              oss << entry.path().filename().string() << " ";
             }
-        } catch (const fs::filesystem_error& e) {
-            std::cerr << "Erro: " << e.what() << std::endl;
+          }
+        } catch (const fs::filesystem_error &e) {
+          std::cerr << "Erro: " << e.what() << std::endl;
         }
-        std::string fim=oss.str();
-    
-        //mudar depois para enviar mais pacotes
-        //TODO
-        command_manager->sendPacket(DATA,1,vector<char>(fim.begin(),fim.end()));
-        std::string end_of_file="END_OF_FILE";
-        command_manager->sendPacket(CMD,1,vector<char>(end_of_file.begin(),end_of_file.end()));
-      }
-      else{
+        std::string fim = oss.str();
+
+        // mudar depois para enviar mais pacotes
+        // TODO
+        if (fim.empty()) {
+          fim = "NAO HÁ ARQUIVOS";
+        }
+        command_manager->sendPacket(DATA, 1, vector<char>(fim.begin(), fim.end()));
+        std::string end_of_file = "END_OF_FILE";
+        command_manager->sendPacket(CMD, 1, vector<char>(end_of_file.begin(), end_of_file.end()));
+      } else {
         cout << "TA ERRADO!\n";
       }
     }

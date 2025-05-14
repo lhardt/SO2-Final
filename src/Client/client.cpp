@@ -1,16 +1,16 @@
 #include "client.hpp"
+#include "../Server/FileManager.hpp"
 #include "../Server/NetworkManager.hpp"
 #include "../constants.hpp"
 #include "../logger.hpp"
-#include "../Server/FileManager.hpp"
 #include <arpa/inet.h>
 #include <chrono>
 #include <cstdlib>
-#include <string>
 #include <filesystem>
 #include <iostream>
 #include <netinet/in.h>
 #include <regex>
+#include <string>
 #include <sys/inotify.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -19,29 +19,23 @@
 using namespace std;
 namespace fs = std::filesystem;
 
-
-
 std::regex upl("upload ([a-zA-Z0-9_/\\.]+)"),
-  dow("download ([a-zA-Z0-9_/\\.]+)"), del("delete ([a-zA-Z0-9_/\\.]+)"),
-  lsr("list_server"), lcl("list_client"), gsd("get_sync_dir"), ext("exit");
+    dow("download ([a-zA-Z0-9_/\\.]+)"), del("delete ([a-zA-Z0-9_/\\.]+)"),
+    lsr("list_server"), lcl("list_client"), gsd("get_sync_dir"), ext("exit");
 
-
-
-void g_handleIoThread(Client *client){
-  std::cout<<"chegou no handle\n";
+void g_handleIoThread(Client *client) {
+  std::cout << "chegou no handle\n";
   log_assert(client != NULL, "Null client!");
   client->handleIoThread();
 }
-void g_handleFileThread(Client *client){
+void g_handleFileThread(Client *client) {
   log_assert(client != NULL, "Null client!");
   client->handleFileThread();
 }
-void g_handleNetworkThread(Client *client){
+void g_handleNetworkThread(Client *client) {
   log_assert(client != NULL, "Null client!");
   client->handleNetworkThread();
 }
-
-
 
 void Client::handleIoThread() {
   log_info("Started IO Thread with ID %d ", std::this_thread::get_id());
@@ -49,14 +43,11 @@ void Client::handleIoThread() {
   string cmdline;
   smatch cmdarg;
   // this->io_thread = std::thread(g_handleIoThread, this);
-  FileManager file_manager("sync_dir");
   // this->network_thread = std::thread(g_handleNetworkThread, this);
 
-
-
-  std::cout<<"esperando comando...";
+  std::cout << "esperando comando...";
   while (getline(cin, cmdline)) {
-    std::cout<<"PASSOU DO GETLINE\n";
+    std::cout << "PASSOU DO GETLINE\n";
     if (regex_match(cmdline, cmdarg, upl)) {
       std::string file_path = cmdarg[1].str();
       // std::string command = "UPLOAD " + file_name;
@@ -70,98 +61,97 @@ void Client::handleIoThread() {
       // //verifica se a resposta é "OKAY"
 
       // Caminho completo do arquivo a ser movido
-      fs::path arquivo =file_path; 
+      fs::path arquivo = file_path;
 
       // Diretório de destino
       fs::path destino_dir = "sync_dir";
 
       try {
-          // Garante que o diretório de destino existe
-          fs::create_directories(destino_dir);
+        // Garante que o diretório de destino existe
+        fs::create_directories(destino_dir);
 
-          // Cria o caminho final no destino mantendo o mesmo nome do arquivo
-          fs::path destino_final = destino_dir / arquivo.filename();
+        // Cria o caminho final no destino mantendo o mesmo nome do arquivo
+        fs::path destino_final = destino_dir / arquivo.filename();
 
-          // Move o arquivo
-          fs::rename(arquivo, destino_final);
+        // Move o arquivo
+        fs::rename(arquivo, destino_final);
 
-          std::cout << "Arquivo movido para " << destino_final << std::endl;
-      } catch (const fs::filesystem_error& e) {
-          std::cerr << "Erro ao mover o arquivo: " << e.what() << std::endl;
+        std::cout << "Arquivo movido para " << destino_final << std::endl;
+      } catch (const fs::filesystem_error &e) {
+        std::cerr << "Erro ao mover o arquivo: " << e.what() << std::endl;
       }
-    }
-    else if (regex_match(cmdline, cmdarg, dow)) {
-      std::cout<<"DOWNLOAD\n";
+    } else if (regex_match(cmdline, cmdarg, dow)) { // faz uma copia nao sincronizada do arquivo para o diretorio local(de onde foi chamado o cliente)
       std::string file_name = cmdarg[1].str();
+      std::cout << "DOWNLOAD " + file_name + "\n";
       std::string command = "DOWNLOAD " + file_name;
-      
-      command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
-      packet response = command_manager->receivePacket();
-      
-      file_manager.createFile(file_name);
+
+      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+
+      curr_directory_file_manager->createFile(file_name);
       bool stop = false;
 
-      while (!stop){
+      while (!stop) {
         packet pkt_received = command_manager->receivePacket();
         std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
         if (std::string(pkt_received._payload, pkt_received.length) ==
             "END_OF_FILE") {
           stop = true;
           break;
-        }else {
+        } else {
           std::cout << "Waiting for more Data..." << std::endl;
         }
         std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
-        file_manager.writeFile(file_name, data);
+        curr_directory_file_manager->writeFile(file_name, data);
       }
 
     } else if (regex_match(cmdline, cmdarg, del)) {
       std::string file_name = cmdarg[1].str();
       std::string command = "DELETE " + file_name;
-      command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
-      file_manager.deleteFile(file_name);
+      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      sync_dir_file_manager->deleteFile(file_name);
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;
-      std::cout<<"MANDANDO LIST SERVER\n";
+      std::cout << "MANDANDO LIST SERVER\n";
       std::string command = "LIST";
-      command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
+      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
 
-      while(!stop){
-        packet pkt_received=command_manager->receivePacket();
+      while (!stop) {
+        std::cout << std::endl;
+        packet pkt_received = command_manager->receivePacket();
 
         if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
           stop = true;
           break;
-        }else{
+        } else {
           std::cout << "Waiting for more Data..." << std::endl;
         }
 
         std::vector<char> data_filenames(pkt_received._payload, pkt_received._payload + pkt_received.length);
-        //vector<char> é um string no formato "teste1.txt teste2.pdf"
-        std::cout << std::string(data_filenames.begin(),data_filenames.end());
+        // vector<char> é um string no formato "teste1.txt teste2.pdf"
+        if (data_filenames.size() > 0) {
+          std::cout << "Received filenames: ";
+        }
+        std::cout << std::string(data_filenames.begin(), data_filenames.end());
       }
 
     } else if (regex_match(cmdline, cmdarg, lcl)) {
       // listClient()
       std::string command = "LIST";
-     command_manager->sendPacket(CMD,1,vector<char>(command.begin(),command.end()));
-     //esperar resposta do servidor...
-     packet pkt=command_manager->receivePacket();
-     std::cout<<"pkt payload: ";
-     
+      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      // esperar resposta do servidor...
+      packet pkt = command_manager->receivePacket();
+      std::cout << "pkt payload: ";
+
     } else if (regex_match(cmdline, cmdarg, gsd)) {
       // getSyncDir();
-    } else if (regex_match(cmdline, cmdarg, ext)){
+    } else if (regex_match(cmdline, cmdarg, ext)) {
       exit(0);
-    }  
-    else{
+    } else {
       log_info("Unrecognized command, please try again.");
     }
   }
 }
-
-
 
 void Client::handleFileThread() {
   log_info("Started File Thread with ID %d ", std::this_thread::get_id());
@@ -243,7 +233,7 @@ void Client::handleFileThread() {
           log_info("Arquivo modificado: %s", file_name.c_str());
           std::string command = "WRITE " + file_name;
           file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
-          file_watcher_manager.sendFileInChunks(file_name, MAX_PACKET_SIZE);
+          file_watcher_manager.sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
           // file_watcher_manager.sendPacket(CMD, 1, filepath);
 
         } else if (event->mask & IN_DELETE) {
@@ -254,7 +244,6 @@ void Client::handleFileThread() {
       }
 
       i += sizeof(struct inotify_event) + event->len;
-
     }
   }
 }
@@ -263,7 +252,7 @@ void Client::handleNetworkThread() {
   log_info("Started Network Thread with ID %d ", std::this_thread::get_id());
 
   int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (socket_fd < 0){
+  if (socket_fd < 0) {
     int error = errno;
     log_error("Could not create socket! errno=%d ", error);
     std::exit(1);
@@ -302,8 +291,6 @@ void Client::handleNetworkThread() {
   // check a queue of commands?
 }
 
-
-
 Client::Client(std::string _client_name, std::string _server_ip,
                std::string _server_port)
     : client_name(_client_name), server_ip(_server_ip),
@@ -331,14 +318,14 @@ Client::Client(std::string _client_name, std::string _server_ip,
     std::cerr << "Endereço inválido ou não suportado" << std::endl;
   }
 
-  // Conectar ao servidor 
+  // Conectar ao servidor
   if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     std::cerr << "Falha ao conectar ao servidor" << std::endl;
   }
 
   std::cout << "Conectado ao servidor!" << std::endl;
 
-  this->command_manager = new NetworkManager(sock, "CommandManager"); //é o socket de commandos, tem que passar para a thread de IO
+  this->command_manager = new NetworkManager(sock, "CommandManager"); // é o socket de commandos, tem que passar para a thread de IO
   std::string command = client_name;
   command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
 
@@ -360,14 +347,8 @@ Client::Client(std::string _client_name, std::string _server_ip,
   std::cout << "Porta recebida do servidor: " << port2 << std::endl;
   this->file_watcher_port = port2;
 
-  std::string sync_dir = "sync_dir";
-  if (mkdir(sync_dir.c_str(), 0777) == -1) {
-    std::cerr << "Erro ao criar o diretório: " << sync_dir << std::endl;
-  } else {
-    std::cout << "Diretório criado: " << sync_dir << std::endl;
-  }
-
-
+  this->sync_dir_file_manager = new FileManager("sync_dir");
+  this->curr_directory_file_manager = new FileManager("./");
 
   this->io_thread = std::thread(g_handleIoThread, this);
   // this->network_thread = std::thread(g_handleNetworkThread, this);

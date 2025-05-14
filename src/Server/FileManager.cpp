@@ -61,9 +61,16 @@ void FileManager::clearFile(const std::string &file_name) {
   ofs.close();
 }
 
-void FileManager::writeFile(const std::string &file_name,
-                            const std::vector<char> &data) {
+void FileManager::writeFile(const std::string &file_name, const std::vector<char> &data) {
   std::string file_path = base_directory + "/" + file_name;
+  std::cout << "Writing file: " << file_path << std::endl;
+  std::ofstream file(file_path, std::ios::binary | std::ios::app);
+  if (!file) {
+    throw std::runtime_error("Failed to open file: " + file_path);
+  }
+  file.write(data.data(), data.size());
+}
+void FileManager::writeFileTo(const std::string &file_path, const std::vector<char> &data) {
   std::cout << "Writing file: " << file_path << std::endl;
   std::ofstream file(file_path, std::ios::binary | std::ios::app);
   if (!file) {

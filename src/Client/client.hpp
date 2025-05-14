@@ -1,3 +1,4 @@
+#include "../Server/FileManager.hpp"
 #include "../Server/NetworkManager.hpp"
 #include <chrono>
 #include <string>
@@ -34,4 +35,6 @@ private:
   NetworkManager *file_watcher_manager;
   NetworkManager *push_manager;
   NetworkManager *command_manager;
+  FileManager *sync_dir_file_manager;
+  FileManager *curr_directory_file_manager;
 };
