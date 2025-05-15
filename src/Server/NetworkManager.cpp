@@ -237,12 +237,12 @@ void NetworkManager::serializePacket(const packet &pkt, char *buffer,
   }
 
   // Printar o buffer serializado em formato hexadecimal
-  std::cout << "Pacote serializado (hex): ";
-  for (size_t i = 0; i < buffer_size; ++i) {
-    std::cout << std::hex << std::uppercase
-              << (unsigned int)(unsigned char)buffer[i] << " ";
-  }
-  std::cout << std::dec << std::endl; // Voltar para decimal
+  // std::cout << "Pacote serializado (hex): ";
+  // for (size_t i = 0; i < buffer_size; ++i) {
+  //   std::cout << std::hex << std::uppercase
+  //             << (unsigned int)(unsigned char)buffer[i] << " ";
+  // }
+  // std::cout << std::dec << std::endl; // Voltar para decimal
 }
 
 packet NetworkManager::deserializePacket(const char *buffer,
@@ -260,12 +260,12 @@ packet NetworkManager::deserializePacket(const char *buffer,
   u_int16_t net_length;
 
   // Printar o buffer serializado em formato hexadecimal
-  std::cout << "Pacote antes de ser deserializado (hex): ";
-  for (size_t i = 0; i < buffer_size; ++i) {
-    std::cout << std::hex << std::uppercase
-              << (unsigned int)(unsigned char)buffer[i] << " ";
-  }
-  std::cout << std::dec << std::endl; // Voltar para decimal
+  // std::cout << "Pacote antes de ser deserializado (hex): ";
+  // for (size_t i = 0; i < buffer_size; ++i) {
+  //   std::cout << std::hex << std::uppercase
+  //             << (unsigned int)(unsigned char)buffer[i] << " ";
+  // }
+  // std::cout << std::dec << std::endl; // Voltar para decimal
 
   std::memcpy(&net_type, buffer + offset, sizeof(net_type));
   offset += sizeof(net_type);

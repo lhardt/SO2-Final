@@ -2,6 +2,7 @@
 #include "NetworkManager.hpp"
 #include <arpa/inet.h>
 #include <cstring>
+#include <mutex>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <sys/socket.h>

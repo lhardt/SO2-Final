@@ -24,7 +24,6 @@ std::regex upl("upload ([a-zA-Z0-9_/\\.]+)"),
     lsr("list_server"), lcl("list_client"), gsd("get_sync_dir"), ext("exit");
 
 void g_handleIoThread(Client *client) {
-  std::cout << "chegou no handle\n";
   log_assert(client != NULL, "Null client!");
   client->handleIoThread();
 }
@@ -47,34 +46,32 @@ void Client::handleIoThread() {
 
   std::cout << "esperando comando...";
   while (getline(cin, cmdline)) {
-    std::cout << "PASSOU DO GETLINE\n";
     if (regex_match(cmdline, cmdarg, upl)) {
       std::string file_path = cmdarg[1].str();
 
       // Caminho completo do arquivo a ser copiado
       fs::path arquivo = file_path;
-  
+
       // Diretório de destino
       fs::path destino_dir = "sync_dir";
-  
+
       try {
-          // Garante que o diretório de destino existe
-          fs::create_directories(destino_dir);
-  
-          // Cria o caminho final no destino mantendo o mesmo nome do arquivo
-          fs::path destino_final = destino_dir / arquivo.filename();
-  
-          // Copia o arquivo
-          fs::copy(arquivo, destino_final, fs::copy_options::overwrite_existing);
-  
-          std::cout << "Arquivo copiado para " << destino_final << std::endl;
+        // Garante que o diretório de destino existe
+        fs::create_directories(destino_dir);
+
+        // Cria o caminho final no destino mantendo o mesmo nome do arquivo
+        fs::path destino_final = destino_dir / arquivo.filename();
+
+        // Copia o arquivo
+        fs::copy(arquivo, destino_final, fs::copy_options::overwrite_existing);
+
       } catch (const fs::filesystem_error &e) {
-          std::cerr << "Erro ao copiar o arquivo: " << e.what() << std::endl;
+        std::cerr << "Erro ao copiar o arquivo: " << e.what() << std::endl;
       }
-  
+
     } else if (regex_match(cmdline, cmdarg, dow)) { // faz uma copia nao sincronizada do arquivo para o diretorio local(de onde foi chamado o cliente)
       std::string file_name = cmdarg[1].str();
-      std::cout << "DOWNLOAD " + file_name + "\n";
+      // std::cout << "DOWNLOAD " + file_name + "\n";
       std::string command = "DOWNLOAD " + file_name;
 
       command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
@@ -91,13 +88,11 @@ void Client::handleIoThread() {
 
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();
-        std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
+        // std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
         if (std::string(pkt_received._payload, pkt_received.length) ==
             "END_OF_FILE") {
           stop = true;
           break;
-        } else {
-          std::cout << "Waiting for more Data..." << std::endl;
         }
         std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
         curr_directory_file_manager->writeFile(file_name, data);
@@ -111,7 +106,7 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;
-      std::cout << "MANDANDO LIST SERVER\n";
+      // std::cout << "MANDANDO LIST SERVER\n";
       std::string command = "LIST";
       command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
 
@@ -249,12 +244,10 @@ void Client::handleFileThread() {
   }
 }
 
-
-
 void Client::handlePushThread() {
   // OBJETIVO: RECEBE OS DADOS DO SERVIDOR E TRATA DE ACORDO
   log_info("INICIANDO THREAD PUSH");
-  
+
   // I) Cria socket para tratar os dados enviados pelo servidor
 
   int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -278,27 +271,26 @@ void Client::handlePushThread() {
   std::cout << "conectado na porta " << this->push_port << std::endl;
 
   NetworkManager push_receiver(sock);
-  
-  while(true){
-    std::cout<<"ESPERANDO PUSHS...\n";
-      packet pkt = push_receiver.receivePacket();
-      std::cout << "Recebido do dispositivo: " << pkt._payload << std::endl;
-      std::istringstream payload_stream(pkt._payload);
-      std::string command;
-      payload_stream >> command;
-      
-    if(command=="WRITE"){
+
+  while (true) {
+    std::cout << "ESPERANDO PUSHS...\n";
+    packet pkt = push_receiver.receivePacket();
+    std::istringstream payload_stream(pkt._payload);
+    std::string command;
+    payload_stream >> command;
+
+    if (command == "WRITE") {
       std::string file_name;
       payload_stream >> file_name;
 
       sync_dir_file_manager->clearFile(file_name);
-      
+
       bool stop = false;
       std::cout << "recebendo arquivo: " << file_name << std::endl;
       while (!stop) {
         packet pkt_received = push_receiver.receivePacket();
         std::string pkt_string = std::string(pkt_received._payload, pkt_received.length);
-        std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
+        // std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
 
         if (pkt_string == "END_OF_FILE") {
           stop = true;
@@ -310,21 +302,18 @@ void Client::handlePushThread() {
         std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
         sync_dir_file_manager->writeFile(file_name, data);
       }
-      
-    }else if(command=="DELETE"){
+
+    } else if (command == "DELETE") {
 
       std::string file_name;
-      std::cout<<"DELETEANDO ARQUIVO ATRAVES DE PUSH"<<std::endl;
       payload_stream >> file_name;
       sync_dir_file_manager->deleteFile(file_name);
-      
-    }else{
+
+    } else {
       std::cout << "ERRO";
-    } 
+    }
   }
 }
-
-
 
 Client::Client(std::string _client_name, std::string _server_ip,
                std::string _server_port)
