@@ -16,6 +16,7 @@ public:
 private:
   int port;
   int main_socket_fd;
+  std::mutex clients_mutex; 
 
   vector<ClientManager *> clients;
 

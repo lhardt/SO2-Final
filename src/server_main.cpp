@@ -14,7 +14,7 @@ int main() {
   logger_open("logger.log");
   log_info("Hello from SERVER, SO2-Final!\n");
   log_info("Starting server...\n");
-  Server server;
-  server.run();
+  Server *server = new Server();
+  server->run();
   return 0;
 }

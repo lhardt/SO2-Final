@@ -42,6 +42,6 @@ int main(int argc, char **argv) {
   // std::cout << "Nome de usuário enviado: " << username << std::endl;
 
   // criar sync_dir
-  Client client(username, server_ip, server_port);
+  Client *client = new Client(username, server_ip, server_port);
   return 0;
 }

@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <unistd.h>
 
-ClientManager::ClientManager(string username)
-    : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {
+ClientManager::ClientManager(string username) : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {
+
   if (username.empty()) {
     throw std::runtime_error("Username cannot be empty");
   }
@@ -19,11 +19,12 @@ void ClientManager::handle_new_connection(int socket) {
       network_manager.closeConnection();
       return;
     }
-
     std::cout << "CRIANDO NOVO DEVICE\n";
-
     Device *device = new Device(socket, this, file_manager);
+    //da lock
+    std::lock_guard<std::mutex> lock(device_mutex);
     devices.push_back(device);
+    device_mutex.unlock();
     std::cout << "Devices: " << devices.size() << std::endl;
     device->start();
     std::cout << "Devices: " << devices.size() << std::endl;
@@ -33,9 +34,17 @@ void ClientManager::handle_new_connection(int socket) {
   }
 }
 
-string ClientManager::getUsername() { return this->username; }
+string ClientManager::getUsername() {
+  return this->username;
+}
 
-void ClientManager::handle_new_push(string file_path, Device *caller) {}
+void ClientManager::handle_new_push(string command, Device *caller) {
+  for(auto device:this->devices){
+    if(device != caller) 
+    device->sendPushTo(command);
+  }
+  
+}
 
 void ClientManager::removeDevice(Device *device) {
   std::lock_guard<std::mutex> lock(

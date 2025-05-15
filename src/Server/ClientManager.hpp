@@ -6,7 +6,6 @@
 #include <string>
 #include <sys/socket.h>
 #include <vector>
-
 #include "Device.hpp"
 #include "FileManager.hpp"
 
@@ -14,12 +13,13 @@
 
 using namespace std;
 class Device;
-class ClientManager {
+class ClientManager{
 
 public:
   ClientManager(string username);
   string getUsername();
   void handle_new_connection(int socket);
+  void handle_new_push(string file_path, Device *caller);
   void removeDevice(Device *device);
 
 private:
@@ -28,9 +28,7 @@ private:
   NetworkManager *network_manager;
   int max_devices;
   string username;
-  std::mutex
-      device_mutex; // Mutex para proteger o acesso à lista de dispositivos
+  std::mutex device_mutex; // Mutex para proteger o acesso à lista de dispositivos
 
-  void handle_new_push(string file_path, Device *caller);
   void sendFileToDevice(Device *device, const string &file_path);
 };

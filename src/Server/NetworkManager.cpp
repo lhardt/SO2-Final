@@ -55,7 +55,9 @@ void NetworkManager::sendPacket(uint16_t type, uint16_t seqn, const std::vector<
   pkt.total_size = HEADER_SIZE + pkt.length;
 
   pkt._payload = new char[payload.size()];
-  std::memcpy(pkt._payload, payload.data(), payload.size());
+  if (pkt._payload != nullptr) {
+    std::memcpy(pkt._payload, payload.data(), payload.size());
+  }
 
   sendPacket(&pkt);
 
@@ -165,7 +167,7 @@ void NetworkManager::receivePayload(packet &pkt) {
 packet NetworkManager::receivePacket() {
   checkSocketInitialized();
 
-  std::cout << "Aguardando pacote..." << std::endl;
+  std::cout << this->name << " Aguardando pacote..." << std::endl;
   auto header_buffer = receiveHeader();
   packet pkt = deserializeHeader(header_buffer.get());
 
@@ -174,9 +176,7 @@ packet NetworkManager::receivePacket() {
   return pkt;
 }
 
-void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t bufferSize) {
-  FileManager fileManager(
-      "sync_dir"); // Ajuste o diretório base conforme necessário
+void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t bufferSize, FileManager &fileManager) {
 
   try {
     // Lê o arquivo inteiro como um vetor de bytes
@@ -237,12 +237,12 @@ void NetworkManager::serializePacket(const packet &pkt, char *buffer,
   }
 
   // Printar o buffer serializado em formato hexadecimal
-  std::cout << "Pacote serializado (hex): ";
-  for (size_t i = 0; i < buffer_size; ++i) {
-    std::cout << std::hex << std::uppercase
-              << (unsigned int)(unsigned char)buffer[i] << " ";
-  }
-  std::cout << std::dec << std::endl; // Voltar para decimal
+  // std::cout << "Pacote serializado (hex): ";
+  // for (size_t i = 0; i < buffer_size; ++i) {
+  //   std::cout << std::hex << std::uppercase
+  //             << (unsigned int)(unsigned char)buffer[i] << " ";
+  // }
+  // std::cout << std::dec << std::endl; // Voltar para decimal
 }
 
 packet NetworkManager::deserializePacket(const char *buffer,
@@ -260,12 +260,12 @@ packet NetworkManager::deserializePacket(const char *buffer,
   u_int16_t net_length;
 
   // Printar o buffer serializado em formato hexadecimal
-  std::cout << "Pacote antes de ser deserializado (hex): ";
-  for (size_t i = 0; i < buffer_size; ++i) {
-    std::cout << std::hex << std::uppercase
-              << (unsigned int)(unsigned char)buffer[i] << " ";
-  }
-  std::cout << std::dec << std::endl; // Voltar para decimal
+  // std::cout << "Pacote antes de ser deserializado (hex): ";
+  // for (size_t i = 0; i < buffer_size; ++i) {
+  //   std::cout << std::hex << std::uppercase
+  //             << (unsigned int)(unsigned char)buffer[i] << " ";
+  // }
+  // std::cout << std::dec << std::endl; // Voltar para decimal
 
   std::memcpy(&net_type, buffer + offset, sizeof(net_type));
   offset += sizeof(net_type);
