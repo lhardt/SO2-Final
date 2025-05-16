@@ -100,7 +100,6 @@ void Client::handleIoThread() {
     } else if (regex_match(cmdline, cmdarg, del)) {
       std::string file_name = cmdarg[1].str();
       std::string command = "DELETE " + file_name;
-      // command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
       sync_dir_file_manager->deleteFile(file_name);
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
@@ -150,13 +149,6 @@ void Client::handleFileThread() {
   log_info("Started File Thread with ID %d ", std::this_thread::get_id());
   static constexpr char *sync_dir = "sync_dir";
 
-  // // CRIAÇÃO DO SOCKET TCP, CREIO QUE DÁ PRA DEIXAR EM UM MÉTODO PARA SER
-  // USADO
-  // // EM TODAS AS THREADS JÁ QUE CADA UMA VAI TER SEU PRÓPRIO SOCKET, TEM QUE
-  // VER
-  // // O QUE DIFERENCIA UM SOCKET DO OUTRO SÃO PORTAS DIFERENTES? OU CADA
-  // THREAD
-  // // FAZ SEU PRÓPRIO sock = socket() COM OS MESMOS PARAMETROS?
   int sock = socket(AF_INET, SOCK_STREAM, 0);
   if (sock < 0) {
     log_error("Erro ao criar socket");
@@ -225,14 +217,13 @@ void Client::handleFileThread() {
           std::string file_name = event->name;
           log_info("Arquivo modificado: %s", file_name.c_str());
           std::string command = "WRITE " + file_name;
+          watcher_push_lock.lock();
           file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
           file_watcher_manager.sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
-          // file_watcher_manager.sendPacket(CMD, 1, filepath);
+          watcher_push_lock.unlock();
 
         } else if (event->mask & IN_DELETE) {
           log_info("Arquivo removido: %s", filepath.c_str());
-          // FAZER FUNÇÃO QUE ENVIA NOME DO ARQUIVO A SER DELETADO EM UMA
-          // connections.cpp (ou algo assim) deleteFile(sock, event->name)
           std::string command = "DELETE " + std::string(event->name);
           file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
         }
@@ -286,6 +277,7 @@ void Client::handlePushThread() {
 
       bool stop = false;
       std::cout << "recebendo arquivo: " << file_name << std::endl;
+      watcher_push_lock.lock();
       while (!stop) {
         packet pkt_received = push_receiver.receivePacket();
         std::string pkt_string = std::string(pkt_received._payload, pkt_received.length);
@@ -301,6 +293,7 @@ void Client::handlePushThread() {
         std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
         sync_dir_file_manager->writeFile(file_name, data);
       }
+      watcher_push_lock.unlock();
 
     } else if (command == "DELETE") {
 

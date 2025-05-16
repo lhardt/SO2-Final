@@ -2,6 +2,7 @@
 #include "../Server/NetworkManager.hpp"
 #include <chrono>
 #include <string>
+#include <mutex>
 #include <thread>
 
 typedef class Client Client;
@@ -37,4 +38,5 @@ private:
   NetworkManager *command_manager;
   FileManager *sync_dir_file_manager;
   FileManager *curr_directory_file_manager;
+  std::mutex watcher_push_lock;
 };
