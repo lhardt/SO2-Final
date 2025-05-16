@@ -326,8 +326,6 @@ void Device::buildFile(std::string &file_name) {
         "END_OF_FILE") {
       stop = true;
       break;
-    } else {
-      std::cout << "Waiting for more Data..." << std::endl;
     }
 
     std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
