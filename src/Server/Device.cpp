@@ -111,6 +111,8 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
     stop_requested = true;
   }
   std::cout << "Command thread finished" << std::endl;
+  //Liberando PushThread para ser encerrada
+  push_cv.notify_one();
 }
 
 
