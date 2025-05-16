@@ -1,11 +1,12 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
 
 class FileManager {
 private:
   std::string base_directory;
-  std::string sha256_hash_file(const std::string& filename);
+  uint64_t hash_file_fnv1a(const std::string& filename);
 public:
   FileManager(std::string base_directory_path);
 

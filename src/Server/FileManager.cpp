@@ -1,11 +1,14 @@
 #include "FileManager.hpp"
 #include <fstream>
 #include <filesystem>
-#include <openssl/sha.h>
 #include <iostream>
 #include <stdexcept>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cstdint>
+
+const uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
+const uint64_t FNV_PRIME = 1099511628211ULL;
 
 FileManager::FileManager(std::string base_directory_path) : base_directory(base_directory_path) {
   struct stat info;
@@ -136,32 +139,27 @@ bool FileManager::checkFileHashchanged(std::string &file_name_original,std::stri
   std::cout<<"comparando arquivos: "<<file_name_original<<" "<<file_name_copy;
 
 
-  if(sha256_hash_file(file_name_original) == sha256_hash_file(file_name_copy))
+  if(hash_file_fnv1a(file_name_original) == hash_file_fnv1a(file_name_copy))
     return false;
   return true;
 }
 
-std::string FileManager::sha256_hash_file(const std::string& filename) {
-  unsigned char hash[SHA256_DIGEST_LENGTH];
-  SHA256_CTX sha256;
-  SHA256_Init(&sha256);
-
+uint64_t FileManager::hash_file_fnv1a(const std::string& filename) {
   std::ifstream file(filename, std::ios::binary);
-  if (!file) throw std::runtime_error("Não foi possível abrir o arquivo.");
+  if (!file) throw std::runtime_error("Erro ao abrir o arquivo: " + filename);
 
-  char buffer[8192];
-  while (file.read(buffer, sizeof(buffer))) {
-      SHA256_Update(&sha256, buffer, file.gcount());
+  uint64_t hash = FNV_OFFSET_BASIS;
+  char buffer[8192]; // buffer de 8KB
+
+  while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
+      std::streamsize bytes = file.gcount();
+      for (std::streamsize i = 0; i < bytes; ++i) {
+          hash ^= static_cast<uint8_t>(buffer[i]);
+          hash *= FNV_PRIME;
+      }
   }
-  SHA256_Update(&sha256, buffer, file.gcount()); // para o final do arquivo
 
-  SHA256_Final(hash, &sha256);
-
-  std::ostringstream result;
-  for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
-      result << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
-  
-  return result.str();
+  return hash;
 }
 
 void FileManager::renameFile(const std::string &file_name,const std::string &new_name){
