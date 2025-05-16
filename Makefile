@@ -74,7 +74,7 @@ clean:
 	-rm $(OBJ) $(TARGET)
 
 folders:
-	-@mkdir -p lib inc obj obj/Server obj/Connection obj/Client bin 2>/dev/null | true
+	-@mkdir -p lib inc obj obj/Server obj/Utils obj/Client bin 2>/dev/null | true
 
 test: $(TRG_TEST)
 	./bin/test

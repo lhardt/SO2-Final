@@ -1,6 +1,6 @@
 #include "Server.hpp"
-#include "NetworkManager.hpp"
-#include "../logger.hpp"
+#include "../Utils/NetworkManager.hpp"
+#include "../Utils/logger.hpp"
 #include <arpa/inet.h>
 #include <cstring>
 #include <mutex>

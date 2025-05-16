@@ -1,13 +1,14 @@
 #pragma once
 #include "ClientManager.hpp"
-#include "FileManager.hpp"
-#include "NetworkManager.hpp"
+#include "../Utils/FileManager.hpp"
+#include "../Utils/NetworkManager.hpp"
 #include <atomic>
 #include <iostream>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
+#include <condition_variable>
 
 class ClientManager;
 
@@ -19,6 +20,8 @@ private:
   NetworkManager *command_manager;       // socket que recebe comando do cliente e arquivos
   NetworkManager *file_watcher_receiver; // socket que recebe quando um arquivo é alterado
   std::mutex push_lock;
+  std::mutex push_mutex;
+  std::condition_variable push_cv;
 
   ClientManager *client_manager; // cliente que possui o dispositivo
   std::thread *command_thread;

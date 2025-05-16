@@ -1,5 +1,5 @@
-#include "../Server/FileManager.hpp"
-#include "../Server/NetworkManager.hpp"
+#include "../Utils/FileManager.hpp"
+#include "../Utils/NetworkManager.hpp"
 #include <chrono>
 #include <string>
 #include <mutex>

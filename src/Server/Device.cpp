@@ -1,10 +1,11 @@
 #include "Device.hpp"
-#include "FileManager.hpp"
+#include "../Utils/FileManager.hpp"
 #include <cstring>
 #include <exception>
 #include <filesystem>
 #include <sstream> // Add this include for std::istringstream
 #include <string>
+#include <condition_variable>
 
 Device::Device(int command_socket_fd, ClientManager *client_manager, FileManager *file_manager)
     : stop_requested(false), send_push(false), command_thread(nullptr), push_thread(nullptr),
@@ -110,6 +111,8 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
     stop_requested = true;
   }
   std::cout << "Command thread finished" << std::endl;
+  //Liberando PushThread para ser encerrada
+  push_cv.notify_one();
 }
 
 
@@ -120,8 +123,11 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
     std::cout << "Iniciando thread de push..." << std::endl;
     while (!stop_requested) {
 
-      if (this->send_push) {
+        std::unique_lock<std::mutex> lock(push_mutex);
+        push_cv.wait(lock, [this] { return this->send_push.load() || stop_requested; });
 
+        if (stop_requested) break;
+        
         std::cout << "COMANDO DO PUSH: " + this->push_command << std::endl;
         std::istringstream payload_stream(this->push_command);
         // primeira palavra do push_command (PUSH ou DELETE)
@@ -146,7 +152,7 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
         this->send_push = false;
         // TERMINA LOCK
         push_lock.unlock();
-      }
+      
     }
   } catch (const std::runtime_error &e) {
     stop_requested = true;
@@ -312,6 +318,7 @@ void Device::sendPushTo(std::string &command) {
   push_lock.lock();
   this->push_command = command;
   this->send_push = true;
+  push_cv.notify_one();
   // push_thread = new thread(&Device::pushThread, this);
 }
 
