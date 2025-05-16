@@ -87,7 +87,6 @@ void Client::handleIoThread() {
 
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();
-        // std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
         if (std::string(pkt_received._payload, pkt_received.length) ==
             "END_OF_FILE") {
           stop = true;
@@ -281,7 +280,6 @@ void Client::handlePushThread() {
       while (!stop) {
         packet pkt_received = push_receiver.receivePacket();
         std::string pkt_string = std::string(pkt_received._payload, pkt_received.length);
-        // std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
 
         if (pkt_string == "END_OF_FILE") {
           stop = true;
