@@ -1,5 +1,5 @@
 #include "Device.hpp"
-#include "FileManager.hpp"
+#include "../Utils/FileManager.hpp"
 #include <cstring>
 #include <exception>
 #include <filesystem>
@@ -122,8 +122,10 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
     while (!stop_requested) {
 
         std::unique_lock<std::mutex> lock(push_mutex);
-        push_cv.wait(lock, [this] { return this->send_push.load(); });
+        push_cv.wait(lock, [this] { return this->send_push.load() || stop_requested; });
 
+        if (stop_requested) break;
+        
         std::cout << "COMANDO DO PUSH: " + this->push_command << std::endl;
         std::istringstream payload_stream(this->push_command);
         // primeira palavra do push_command (PUSH ou DELETE)

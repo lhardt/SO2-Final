@@ -1,7 +1,7 @@
 #pragma once
 #include "Device.hpp"
-#include "FileManager.hpp"
-#include "NetworkManager.hpp"
+#include "../Utils/FileManager.hpp"
+#include "../Utils/NetworkManager.hpp"
 #include <iostream>
 #include <mutex>
 #include <netinet/in.h>
@@ -9,7 +9,6 @@
 #include <sys/socket.h>
 #include <vector>
 #include "Device.hpp"
-#include "FileManager.hpp"
 
 #define MAX_DEVICES 2
 

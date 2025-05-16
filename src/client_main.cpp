@@ -4,8 +4,8 @@
  * please only define the main() function here.
  */
 #include "Client/client.hpp"
-#include "Server/NetworkManager.hpp"
-#include "logger.hpp"
+#include "Utils/NetworkManager.hpp"
+#include "Utils/logger.hpp"
 #include <arpa/inet.h>
 #include <chrono>
 #include <cstdlib>

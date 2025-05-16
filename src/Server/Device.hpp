@@ -1,7 +1,7 @@
 #pragma once
 #include "ClientManager.hpp"
-#include "FileManager.hpp"
-#include "NetworkManager.hpp"
+#include "../Utils/FileManager.hpp"
+#include "../Utils/NetworkManager.hpp"
 #include <atomic>
 #include <iostream>
 #include <mutex>

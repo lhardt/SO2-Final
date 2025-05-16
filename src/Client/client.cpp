@@ -1,7 +1,7 @@
 #include "client.hpp"
-#include "../Server/FileManager.hpp"
-#include "../Server/NetworkManager.hpp"
-#include "../logger.hpp"
+#include "../Utils/FileManager.hpp"
+#include "../Utils/NetworkManager.hpp"
+#include "../Utils/logger.hpp"
 #include <arpa/inet.h>
 #include <chrono>
 #include <cstdlib>
