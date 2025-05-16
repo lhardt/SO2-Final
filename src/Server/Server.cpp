@@ -1,5 +1,6 @@
 #include "Server.hpp"
 #include "NetworkManager.hpp"
+#include "../logger.hpp"
 #include <arpa/inet.h>
 #include <cstring>
 #include <mutex>
@@ -23,20 +24,22 @@ extern "C" void *client_thread_entry(void *raw) {
   return nullptr;
 }
 
+// See https://man7.org/linux/man-pages/man3/listen.3p.html
 Server::Server() {
   // cria socket para aceitar novas conexoes
   port = PORT;
   main_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 
   if (main_socket_fd == -1) {
-    perror("socket");
+    int error = errno;
+    log_error("Could not create socket! errno=%d ", error);
     close(main_socket_fd);
     exit(EXIT_FAILURE);
   }
   int opt = 1;
-  if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) ==
-      -1) {
-    perror("setsockopt");
+  if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+    int error = errno;
+    log_error("Could not execute setsockopt! errno=%d ", error);
     close(main_socket_fd);
     exit(EXIT_FAILURE);
   }
@@ -46,12 +49,12 @@ Server::Server() {
   server_addr.sin_addr.s_addr = INADDR_ANY;
   server_addr.sin_port = htons(PORT);
 
-  if (bind(main_socket_fd, (struct sockaddr *)&server_addr,
-           sizeof(server_addr)) == -1) {
-    perror("bind");
+  if (bind(main_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+    int error = errno;
+    log_error("Could not create bind socket! errno=%d ", error);
     exit(EXIT_FAILURE);
   }
-  cout << "Server started on port " << PORT << endl;
+  log_info("Server started on port %d ", PORT);
 }
 
 ClientManager *Server::clientExists(string client_username) {
@@ -69,16 +72,16 @@ void Server::run() {
   char buffer[MAX_PACKET_SIZE] = {0};
 
   if (listen(main_socket_fd, 5) == -1) {
-    perror("listen");
+    int error = errno;
+    log_error("Could not LISTEN to socket! errno=%d ", error);
     exit(EXIT_FAILURE);
   }
 
   sockaddr_in client_addr; // Declaração de client_addr
   while (true) {
     socklen_t addrlen = sizeof(client_addr);
-    cout << "Listening for new connections..." << endl;
-    int new_socket_fd =
-        accept(main_socket_fd, (struct sockaddr *)&client_addr, &addrlen);
+    log_info("Listening for new connections...");
+    int new_socket_fd = accept(main_socket_fd, (struct sockaddr *)&client_addr, &addrlen);
     if (new_socket_fd < 0) {
       perror("accept");
       exit(EXIT_FAILURE);
