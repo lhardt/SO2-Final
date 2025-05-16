@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <sstream> // Add this include for std::istringstream
 #include <string>
+#include <condition_variable>
 
 Device::Device(int command_socket_fd, ClientManager *client_manager, FileManager *file_manager)
     : stop_requested(false), send_push(false), command_thread(nullptr), push_thread(nullptr),
@@ -120,7 +121,8 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
     std::cout << "Iniciando thread de push..." << std::endl;
     while (!stop_requested) {
 
-      if (this->send_push) {
+        std::unique_lock<std::mutex> lock(push_mutex);
+        push_cv.wait(lock, [this] { return this->send_push.load(); });
 
         std::cout << "COMANDO DO PUSH: " + this->push_command << std::endl;
         std::istringstream payload_stream(this->push_command);
@@ -146,7 +148,7 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
         this->send_push = false;
         // TERMINA LOCK
         push_lock.unlock();
-      }
+      
     }
   } catch (const std::runtime_error &e) {
     stop_requested = true;
@@ -312,6 +314,7 @@ void Device::sendPushTo(std::string &command) {
   push_lock.lock();
   this->push_command = command;
   this->send_push = true;
+  push_cv.notify_one();
   // push_thread = new thread(&Device::pushThread, this);
 }
 
