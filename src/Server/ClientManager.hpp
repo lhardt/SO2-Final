@@ -1,4 +1,6 @@
 #pragma once
+#include "Device.hpp"
+#include "FileManager.hpp"
 #include "NetworkManager.hpp"
 #include <iostream>
 #include <mutex>
@@ -19,7 +21,7 @@ public:
   ClientManager(string username);
   string getUsername();
   void handle_new_connection(int socket);
-  void handle_new_push(string file_path, Device *caller);
+  void handle_new_push(string command, Device *caller);
   void removeDevice(Device *device);
 
 private:
