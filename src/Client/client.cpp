@@ -1,7 +1,6 @@
 #include "client.hpp"
 #include "../Server/FileManager.hpp"
 #include "../Server/NetworkManager.hpp"
-#include "../constants.hpp"
 #include "../logger.hpp"
 #include <arpa/inet.h>
 #include <chrono>
@@ -339,12 +338,15 @@ Client::Client(std::string _client_name, std::string _server_ip,
 
   // Converter o endereço IP para binário
   if (inet_pton(AF_INET, server_ip.c_str(), &serv_addr.sin_addr) <= 0) {
-    std::cerr << "Endereço inválido ou não suportado" << std::endl;
+    std::cerr << "Endereço (" << server_ip << ") inválido ou não suportado" << std::endl;
   }
 
   // Conectar ao servidor
-  if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    std::cerr << "Falha ao conectar ao servidor" << std::endl;
+  while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    int err = errno;
+    log_warn("Falha (errno=%d) ao conectar ao servidor. Cliente irá esperar 500ms", errno);
+    std::chrono::milliseconds sleep_time{500};
+    std::this_thread::sleep_for(sleep_time);
   }
 
   std::cout << "Conectado ao servidor!" << std::endl;
@@ -378,11 +380,8 @@ Client::Client(std::string _client_name, std::string _server_ip,
   this->network_thread = std::thread(g_handlePushThread, this);
   this->file_thread = std::thread(g_handleFileThread, this);
 
-  // If the main thread finishes, all the other threads are prematurely
-  // finished.
-  while (true) {
-    // log_info("The main thread, like the Great Dark Beyond, lies asleep");
-    std::chrono::milliseconds sleep_time{5000};
-    std::this_thread::sleep_for(sleep_time);
-  }
+  // If the main thread finishes, all the other threads are prematurely finished.
+  io_thread.join();
+  network_thread.join();
+  file_thread.join();
 }

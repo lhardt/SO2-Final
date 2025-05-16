@@ -5,8 +5,7 @@ services:
       context: .
     environment:
       - TARGET=server
-    ports:
-      - "4403:4403"
+    network_mode: "host"
     image: so2-app:latest 
   client-app:
     pull_policy: never
