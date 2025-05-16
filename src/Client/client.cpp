@@ -84,10 +84,9 @@ void Client::handleIoThread() {
       }
       curr_directory_file_manager->createFile(file_name);
       bool stop = false;
-
+      std::cout << "Writing file: " << file_name << std::endl;
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();
-        // std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
         if (std::string(pkt_received._payload, pkt_received.length) ==
             "END_OF_FILE") {
           stop = true;
@@ -276,12 +275,11 @@ void Client::handlePushThread() {
       sync_dir_file_manager->clearFile(file_name);
 
       bool stop = false;
-      std::cout << "recebendo arquivo: " << file_name << std::endl;
+      std::cout << "Recebendo arquivo: " << file_name << std::endl;
       watcher_push_lock.lock();
       while (!stop) {
         packet pkt_received = push_receiver.receivePacket();
         std::string pkt_string = std::string(pkt_received._payload, pkt_received.length);
-        // std::cout << "Recebido do dispositivo: " << pkt_received._payload << std::endl;
 
         if (pkt_string == "END_OF_FILE") {
           stop = true;

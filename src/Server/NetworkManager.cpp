@@ -166,8 +166,6 @@ void NetworkManager::receivePayload(packet &pkt) {
 
 packet NetworkManager::receivePacket() {
   checkSocketInitialized();
-
-  std::cout << this->name << " Aguardando pacote..." << std::endl;
   auto header_buffer = receiveHeader();
   packet pkt = deserializeHeader(header_buffer.get());
 

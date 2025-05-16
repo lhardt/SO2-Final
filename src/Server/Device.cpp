@@ -194,10 +194,6 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
         file_manager->createFile(file_name);
 
       } else if (first_word == "WRITE") {
-        
-        // VERIFICAR SE O ARQUIVO FOI ATUALIZADO
-
-        // VERIFICAR SE O ARQUIVO FOI ATUALIZADO
 
         std::string file_name;
         payload_stream >> file_name;
@@ -321,17 +317,15 @@ void Device::sendPushTo(std::string &command) {
 
 void Device::buildFile(std::string &file_name) {
   bool stop = false;
-  std::cout << "recebendo arquivo: " << file_name << std::endl;
+  std::cout << "Recebendo arquivo: " << file_name << std::endl;
   while (!stop) {
     packet pkt_received = file_watcher_receiver->receivePacket();
-    std::cout << "Recebido do dispositivo: " << pkt_received._payload
+    std::cout << "Recebido do dispositivo pacote de SEQ: " << pkt_received.seqn
               << std::endl;
     if (std::string(pkt_received._payload, pkt_received.length) ==
         "END_OF_FILE") {
       stop = true;
       break;
-    } else {
-      std::cout << "Waiting for more Data..." << std::endl;
     }
 
     std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);

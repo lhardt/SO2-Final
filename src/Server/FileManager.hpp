@@ -1,11 +1,12 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
 
 class FileManager {
 private:
   std::string base_directory;
-  std::string sha256_hash_file(const std::string& filename);
+  uint64_t hash_file_fnv1a(const std::string& filename);
 public:
   FileManager(std::string base_directory_path);
 
@@ -15,7 +16,6 @@ public:
 
   std::vector<char> readFile(const std::string &file_name);
   void writeFile(const std::string &file_name, const std::vector<char> &data); // sempre adiciona no final do arquivo
-  void writeFileTo(const std::string &file_path, const std::vector<char> &data);
   void createFile(const std::string &file_name);
   void clearFile(const std::string &file_name);
   void printFile(const std::string &file_name);
