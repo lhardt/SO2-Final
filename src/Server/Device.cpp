@@ -37,6 +37,8 @@ Device::~Device() {
   delete file_watcher_receiver;
 }
 
+
+
 void Device::commandThread() { // thread se comporta recebendo comandos do
                                // cliente e enviando dados para ele
   try {
@@ -110,6 +112,8 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
   std::cout << "Command thread finished" << std::endl;
 }
 
+
+
 void Device::pushThread() { // thread se comporta somente enviando dados ao
                             // cliente, nao recebe
   try {
@@ -152,6 +156,8 @@ void Device::pushThread() { // thread se comporta somente enviando dados ao
   std::cout << "Push thread finished" << std::endl;
 }
 
+
+
 void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
                                    // do cliente,nao envia
   // tipos de pacotes que essa thread pode receber:
@@ -183,12 +189,13 @@ void Device::fileWatcherThread() { // thread se comporta somente recebendo dados
 
       // Interpret the packet based on the first word
       if (first_word == "CREATED") {
-
         std::string file_name;
         payload_stream >> file_name;
         file_manager->createFile(file_name);
 
       } else if (first_word == "WRITE") {
+        
+        // VERIFICAR SE O ARQUIVO FOI ATUALIZADO
 
         // VERIFICAR SE O ARQUIVO FOI ATUALIZADO
 
@@ -260,6 +267,8 @@ void Device::start() {
   }
   client_manager->removeDevice(this);
 }
+
+
 
 void Device::stop() {
   stop_requested = true;

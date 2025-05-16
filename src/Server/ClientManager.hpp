@@ -8,12 +8,14 @@
 #include <string>
 #include <sys/socket.h>
 #include <vector>
+#include "Device.hpp"
+#include "FileManager.hpp"
 
 #define MAX_DEVICES 2
 
 using namespace std;
 class Device;
-class ClientManager {
+class ClientManager{
 
 public:
   ClientManager(string username);

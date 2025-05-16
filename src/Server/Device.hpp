@@ -41,6 +41,5 @@ public:
   void sendFileTo(std::string file_path);  // no socket de comando
   void sendPushTo(std::string &file_path); // no socket de push
   void buildFile(std::string &file_name);
-
   ~Device();
 };
