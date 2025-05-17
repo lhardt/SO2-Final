@@ -127,7 +127,7 @@ void Client::handleIoThread() {
     } else if (regex_match(cmdline, cmdarg, lcl)) {
       std::string file_names = sync_dir_file_manager->getFiles();
       if (file_names.size() > 0) {
-        std::cout << "Received filenames: ";
+        std::cout << "Local filenames: ";
       }
       std::cout << std::string(file_names.begin(), file_names.end()) << std::endl;
 
