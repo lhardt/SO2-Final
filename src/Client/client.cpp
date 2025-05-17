@@ -37,13 +37,11 @@ void g_handlePushThread(Client *client) {
 
 void Client::handleIoThread() {
   log_info("Started IO Thread with ID %d ", std::this_thread::get_id());
-  // use std::getline and add to a queue of commands?
+
   string cmdline;
   smatch cmdarg;
-  // this->io_thread = std::thread(g_handleIoThread, this);
-  // this->network_thread = std::thread(g_handleNetworkThread, this);
 
-  std::cout << "esperando comando...";
+  std::cout << "Esperando comando...";
   while (getline(cin, cmdline)) {
     if (regex_match(cmdline, cmdarg, upl)) {
       std::string file_path = cmdarg[1].str();
@@ -123,16 +121,15 @@ void Client::handleIoThread() {
         if (data_filenames.size() > 0) {
           std::cout << "Received filenames: ";
         }
-        std::cout << std::string(data_filenames.begin(), data_filenames.end());
+        std::cout << std::string(data_filenames.begin(), data_filenames.end()) << std::endl;
       }
 
     } else if (regex_match(cmdline, cmdarg, lcl)) {
-      // listClient()
-      std::string command = "LIST";
-      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
-      // esperar resposta do servidor...
-      packet pkt = command_manager->receivePacket();
-      std::cout << "pkt payload: ";
+      std::string file_names = sync_dir_file_manager->getFiles();
+      if (file_names.size() > 0) {
+        std::cout << "Received filenames: ";
+      }
+      std::cout << std::string(file_names.begin(), file_names.end()) << std::endl;
 
     } else if (regex_match(cmdline, cmdarg, gsd)) {
       // getSyncDir();
