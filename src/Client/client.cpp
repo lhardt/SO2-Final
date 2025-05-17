@@ -41,7 +41,7 @@ void Client::handleIoThread() {
   string cmdline;
   smatch cmdarg;
 
-  std::cout << "Esperando comando..." << std::endl;
+  std::cout << "esperando comando...";
   while (getline(cin, cmdline)) {
     if (regex_match(cmdline, cmdarg, upl)) {
       std::string file_path = cmdarg[1].str();
