@@ -18,7 +18,7 @@ struct ThreadArg {
 
 extern "C" void *client_thread_entry(void *raw) {
   auto *ta = static_cast<ThreadArg *>(raw);
-  cout << "Entrando na thread do cliente!" << endl;
+  log_info("Entrando na thread do cliente com ID");
   ta->manager->handle_new_connection(ta->sock_fd);
   delete ta; // evitar leak
   return nullptr;
@@ -32,14 +32,14 @@ Server::Server() {
 
   if (main_socket_fd == -1) {
     int error = errno;
-    log_error("Could not create socket! errno=%d ", error);
+    log_error("Falha ao criar socket, errno:%d ", error);
     close(main_socket_fd);
     exit(EXIT_FAILURE);
   }
   int opt = 1;
   if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
     int error = errno;
-    log_error("Could not execute setsockopt! errno=%d ", error);
+    log_error("Não foi possível executar setsockopt, errno=%d ", error);
     close(main_socket_fd);
     exit(EXIT_FAILURE);
   }
@@ -51,10 +51,10 @@ Server::Server() {
 
   if (bind(main_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
     int error = errno;
-    log_error("Could not create bind socket! errno=%d ", error);
+    log_error("Não foi possível bindar socket, errno=%d ", error);
     exit(EXIT_FAILURE);
   }
-  log_info("Server started on port %d ", PORT);
+  log_info("Server inicializado na porta: %d ", PORT);
 }
 
 ClientManager *Server::clientExists(string client_username) {
@@ -73,47 +73,33 @@ void Server::run() {
 
   if (listen(main_socket_fd, 5) == -1) {
     int error = errno;
-    log_error("Could not LISTEN to socket! errno=%d ", error);
+    log_error("Não foi possível dar listen no socket, errno=%d ", error);
     exit(EXIT_FAILURE);
   }
 
   sockaddr_in client_addr; // Declaração de client_addr
   while (true) {
     socklen_t addrlen = sizeof(client_addr);
-    log_info("Listening for new connections...");
+    log_info("Esperando novas conexões");
     int new_socket_fd = accept(main_socket_fd, (struct sockaddr *)&client_addr, &addrlen);
     if (new_socket_fd < 0) {
       perror("accept");
       exit(EXIT_FAILURE);
     }
-    cout << "Nova conexão recebida" << endl;
+    log_info("Nova conexão recebida");
     NetworkManager network_manager(new_socket_fd, "server");
     // espera um pacote com payload sendo o username
     packet pkt = network_manager.receivePacket();
-    std::cout << "Recebido do cliente: " << pkt._payload << std::endl;
-
     std::string username(pkt._payload);
-    std::cout << "Username recebido: " << username << std::endl;
-
-    // // Espera receber o username do cliente no socket
-    // memset(buffer, 0, sizeof(buffer));
-    // int valread = read(new_socket_fd, buffer,
-    //                    sizeof(buffer) - 1); // Leave space for null
-    //                    terminator
-    // if (valread <= 0) {
-    //   close(new_socket_fd);
-    //   continue;
-    // }
-    // buffer[valread] = '\0'; // Null-terminate the string
-    // std::string username(buffer, valread);
+    log_info("Recebido username: %s", username.c_str());
 
     if (ClientManager *manager = clientExists(username)) {
       // Se o cliente já existe, entrega o socket para o manager
-      cout << "Cliente já existe, entregando socket para o manager..." << endl;
+      log_info("Cliente já existe, entregando socket para o manager");
       deliverToManager(manager, new_socket_fd);
     } else {
       // Se o cliente não existe, cria um novo manager e entrega o socket
-      cout << "Criando novo client manager..." << endl;
+      log_info("Cliente não existe, criando novo client manager");
       createNewManager(username, new_socket_fd);
     }
   }

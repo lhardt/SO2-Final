@@ -30,6 +30,4 @@ private:
   int max_devices;
   string username;
   std::mutex device_mutex; // Mutex para proteger o acesso à lista de dispositivos
-
-  void sendFileToDevice(Device *device, const string &file_path);
 };

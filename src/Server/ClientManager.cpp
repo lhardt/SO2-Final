@@ -1,6 +1,7 @@
 #include "ClientManager.hpp"
 #include <algorithm>
 #include <unistd.h>
+#include "../Utils/logger.hpp"
 
 ClientManager::ClientManager(string username) : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {
 
@@ -13,23 +14,23 @@ ClientManager::ClientManager(string username) : username(username), max_devices(
 void ClientManager::handle_new_connection(int socket) {
   try {
     if (devices.size() == max_devices) {
+      log_warn("Limite de dispositivos atingido.");
       NetworkManager network_manager(socket, "Limite de dispositivos");
       std::string command = "Limite de dispositivos atingido";
       network_manager.sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
       network_manager.closeConnection();
       return;
     }
-    std::cout << "CRIANDO NOVO DEVICE\n";
+    log_info("Criando novo device");
     Device *device = new Device(socket, this, file_manager);
-    //da lock
     std::lock_guard<std::mutex> lock(device_mutex);
     devices.push_back(device);
     device_mutex.unlock();
-    std::cout << "Devices: " << devices.size() << std::endl;
+    log_info("Dispositivos conectados: %d", devices.size());
     device->start();
-    std::cout << "Devices: " << devices.size() << std::endl;
+    log_info("Dispositivos conectados: %d", devices.size());
   } catch (const std::exception &e) {
-    std::cerr << "Erro ao lidar com nova conexão: " << e.what() << std::endl;
+    log_error("Erro ao lidar com nova conexão: %s", e.what());
     close(socket);
   }
 }
@@ -50,26 +51,15 @@ void ClientManager::removeDevice(Device *device) {
   std::lock_guard<std::mutex> lock(
       device_mutex); // Protege o acesso à lista de dispositivos
   try {
-    std::cout << "Removendo dispositivo: " << device << std::endl;
+    log_info("Removendo dispositivo");
     device->stop(); // Para o dispositivo
     auto it = std::find(devices.begin(), devices.end(), device);
     if (it != devices.end()) {
       devices.erase(it);
-      std::cout << "Device removido: " << devices.size() << std::endl;
+      log_info("Dispositivo removido com sucesso");
       delete device; // Libera a memória do dispositivo
     }
   } catch (const std::exception &e) {
-    std::cerr << "Erro ao remover dispositivo: " << e.what() << std::endl;
-  }
-}
-
-void ClientManager::sendFileToDevice(Device *device, const string &file_path) {
-  std::cout << "Enviando arquivo para o dispositivo: " << file_path
-            << std::endl;
-
-  try {
-
-  } catch (const std::exception &e) {
-    std::cerr << "Erro ao enviar arquivo: " << e.what() << std::endl;
+    log_error("Erro ao remover dispositivo: %s", e.what());
   }
 }
