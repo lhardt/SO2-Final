@@ -194,7 +194,7 @@ void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t 
 
       std::string command = payload;
       sendPacket(DATA, sequenceNumber++, std::vector<char>(command.begin(), command.end()));
-      log_info("Sent chunk of size %zu from file: %s, %d/%d", chunkSize,
+      log_info("Enviado chunck de tamanho %zu do arquivo: %s, %d/%d", chunkSize,
                filepath.c_str(), sequenceNumber, totalPackets);
 
       offset += chunkSize;
@@ -203,9 +203,9 @@ void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t 
     // Envia um pacote final indicando o término do envio
     std::string command = "END_OF_FILE";
     sendPacket(CMD, sequenceNumber, std::vector<char>(command.begin(), command.end()));
-    log_info("Finished sending file: %s", filepath.c_str());
+    log_info("Arquivo enviado com sucesso: %s", filepath.c_str());
   } catch (const std::exception &e) {
-    log_error("Error reading or sending file: %s", e.what());
+    log_error("Falha ao enviar ou ler arquivo: %s", e.what());
   }
 }
 

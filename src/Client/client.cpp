@@ -181,7 +181,7 @@ void Client::handleFileThread() {
   size_t BUF_LEN = 1024 * (sizeof(inotify_event) + 16);
   char buffer[BUF_LEN];
 
-  log_info("Monitoring file: %s", sync_dir);
+  log_info("Monitorando folder: %s", sync_dir);
 
   while (true) {
     int length = read(inotifyFd, buffer, BUF_LEN);
@@ -237,7 +237,7 @@ void Client::handlePushThread() {
     return;
   }
   if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    log_error("Failed to connect to server: %s:%d",
+    log_error("Falha ao conectar com servidor: %s:%d",
               this->server_ip.c_str(), this->server_port.c_str());
     close(sock);
   }

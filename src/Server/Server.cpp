@@ -32,14 +32,14 @@ Server::Server() {
 
   if (main_socket_fd == -1) {
     int error = errno;
-    log_error("Could not create socket! errno=%d ", error);
+    log_error("Falha ao criar socket, errno:%d ", error);
     close(main_socket_fd);
     exit(EXIT_FAILURE);
   }
   int opt = 1;
   if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
     int error = errno;
-    log_error("Could not execute setsockopt! errno=%d ", error);
+    log_error("Não foi possível executar setsockopt, errno=%d ", error);
     close(main_socket_fd);
     exit(EXIT_FAILURE);
   }
@@ -51,10 +51,10 @@ Server::Server() {
 
   if (bind(main_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
     int error = errno;
-    log_error("Could not create bind socket! errno=%d ", error);
+    log_error("Não foi possível bindar socket, errno=%d ", error);
     exit(EXIT_FAILURE);
   }
-  log_info("Server started on port %d ", PORT);
+  log_info("Server inicializado na porta: %d ", PORT);
 }
 
 ClientManager *Server::clientExists(string client_username) {
@@ -73,14 +73,14 @@ void Server::run() {
 
   if (listen(main_socket_fd, 5) == -1) {
     int error = errno;
-    log_error("Could not LISTEN to socket! errno=%d ", error);
+    log_error("Não foi possível dar listen no socket, errno=%d ", error);
     exit(EXIT_FAILURE);
   }
 
   sockaddr_in client_addr; // Declaração de client_addr
   while (true) {
     socklen_t addrlen = sizeof(client_addr);
-    log_info("Listening for new connections...");
+    log_info("Esperando novas conexões");
     int new_socket_fd = accept(main_socket_fd, (struct sockaddr *)&client_addr, &addrlen);
     if (new_socket_fd < 0) {
       perror("accept");
