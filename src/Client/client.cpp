@@ -36,7 +36,7 @@ void g_handlePushThread(Client *client) {
 }
 
 void Client::handleIoThread() {
-  log_info("Started IO Thread with ID %d ", std::this_thread::get_id());
+  log_info("Inicializado IO Thread com ID: %d ", std::this_thread::get_id());
 
   string cmdline;
   smatch cmdarg;
