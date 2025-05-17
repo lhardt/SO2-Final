@@ -94,7 +94,9 @@ void Client::handleIoThread() {
       }
 
     } else if (regex_match(cmdline, cmdarg, del)) {
-      continue;
+      std::string file_name = cmdarg[1].str();
+      log_info("Deletando arquivo: %s", file_name.c_str());
+      sync_dir_file_manager->deleteFile(file_name);
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;

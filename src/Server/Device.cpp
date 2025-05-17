@@ -69,10 +69,7 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
                                           *file_manager);
 
       } else if (command_keyword == "DELETE") {
-        std::string file_name;
-        payload_stream >> file_name;
-        file_manager->deleteFile(file_name);
-        this->client_manager->handle_new_push(pkt._payload, this);
+        continue;
 
       } else if (command_keyword == "LIST") {
         std::string fim = this->file_manager->getFiles();
@@ -286,7 +283,7 @@ void Device::buildFile(std::string &file_name) {
   while (!stop) {
     packet pkt_received = file_watcher_receiver->receivePacket();
     log_info("Recebido do dispositivo pacote de SEQ: %d", pkt_received.seqn);
-    
+
     if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
       stop = true;
       break;
