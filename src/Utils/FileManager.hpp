@@ -2,7 +2,9 @@
 #include <string>
 #include <vector>
 #include <cstdint>
-
+#include <string>
+#include <filesystem>
+namespace fs = std::filesystem;
 class FileManager {
 private:
   std::string base_directory;
@@ -23,4 +25,5 @@ public:
   bool isFileExists(const std::string &file_name);
   bool checkFileHashchanged(std::string &file_name_original,std::string &file_name_copy);
   void renameFile(const std::string &file_name,const std::string &new_name);
+  std::string getFiles();
 };

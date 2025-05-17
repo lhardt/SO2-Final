@@ -78,20 +78,7 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
         this->client_manager->handle_new_push(pkt._payload, this);
 
       } else if (command_keyword == "LIST") {
-        namespace fs = std::filesystem;
-        fs::path diretorio = "sync_dir_" + client_manager->getUsername();
-        std::ostringstream oss;
-
-        try {
-          for (const auto &entry : fs::directory_iterator(diretorio)) {
-            if (entry.is_regular_file()) {
-              oss << entry.path().filename().string() << " ";
-            }
-          }
-        } catch (const fs::filesystem_error &e) {
-          std::cerr << "Erro: " << e.what() << std::endl;
-        }
-        std::string fim = oss.str();
+        std::string fim = this->file_manager->getFiles();
 
         // mudar depois para enviar mais pacotes
         // TODO

@@ -9,6 +9,7 @@
 
 const uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
 const uint64_t FNV_PRIME = 1099511628211ULL;
+namespace fs = std::filesystem;
 
 FileManager::FileManager(std::string base_directory_path) : base_directory(base_directory_path) {
   struct stat info;
@@ -147,6 +148,22 @@ uint64_t FileManager::hash_file_fnv1a(const std::string& filename) {
   }
 
   return hash;
+}
+
+std::string FileManager::getFiles() {
+  std::ostringstream oss;
+
+  try {
+    for (const auto &entry : fs::directory_iterator(this->base_directory)) {
+      if (entry.is_regular_file()) {
+        oss << entry.path().filename().string() << " ";
+      }
+    }
+  } catch (const fs::filesystem_error &e) {
+    std::cerr << "Erro: " << e.what() << std::endl;
+  }
+
+  return oss.str();
 }
 
 void FileManager::renameFile(const std::string &file_name,const std::string &new_name){
