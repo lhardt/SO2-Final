@@ -68,21 +68,20 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, dow)) { // faz uma copia nao sincronizada do arquivo para o diretorio local(de onde foi chamado o cliente)
       std::string file_name = cmdarg[1].str();
-      // std::cout << "DOWNLOAD " + file_name + "\n";
       std::string command = "DOWNLOAD " + file_name;
 
       command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
       // espera resposta do servidor...
       packet response = command_manager->receivePacket();
       if (std::string(response._payload, response.length) == "FILE_NOT_FOUND") {
-        std::cout << "Arquivo não encontrado no servidor." << std::endl;
+        log_info("Arquivo não encontrado no servidor.");
         continue;
       } else if (std::string(response._payload, response.length) == "FILE_FOUND") {
-        std::cout << "Arquivo encontrado no servidor." << std::endl;
+        log_info("Arquivo encontrado no servidor.");
       }
       curr_directory_file_manager->createFile(file_name);
       bool stop = false;
-      std::cout << "Writing file: " << file_name << std::endl;
+      log_info("Escrevendo arquivo: %s", file_name.c_str());
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();
         if (std::string(pkt_received._payload, pkt_received.length) ==
@@ -95,25 +94,19 @@ void Client::handleIoThread() {
       }
 
     } else if (regex_match(cmdline, cmdarg, del)) {
-      std::string file_name = cmdarg[1].str();
-      std::string command = "DELETE " + file_name;
-      sync_dir_file_manager->deleteFile(file_name);
+      continue;
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;
-      // std::cout << "MANDANDO LIST SERVER\n";
       std::string command = "LIST";
       command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
 
       while (!stop) {
-        std::cout << std::endl;
         packet pkt_received = command_manager->receivePacket();
 
         if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
           stop = true;
           break;
-        } else {
-          std::cout << "Waiting for more Data..." << std::endl;
         }
 
         std::vector<char> data_filenames(pkt_received._payload, pkt_received._payload + pkt_received.length);
@@ -136,13 +129,13 @@ void Client::handleIoThread() {
     } else if (regex_match(cmdline, cmdarg, ext)) {
       exit(0);
     } else {
-      log_info("Unrecognized command, please try again.");
+      std::cout << "Comando nao reconhecido, tente novamente." << std::endl;
     }
   }
 }
 
 void Client::handleFileThread() {
-  log_info("Started File Thread with ID %d ", std::this_thread::get_id());
+  log_info("Inicializado File Thread com ID %d ", std::this_thread::get_id());
   static constexpr char *sync_dir = "sync_dir";
 
   int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -156,35 +149,30 @@ void Client::handleFileThread() {
   server_addr.sin_port = htons(this->file_watcher_port);
 
   if (inet_pton(AF_INET, this->server_ip.c_str(), &server_addr.sin_addr) <= 0) {
-    log_error("File thread | Invalid IP address: %s", this->server_ip.c_str());
+    log_error("IP inválido: %s", this->server_ip.c_str());
     close(sock);
     return;
   }
 
   if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    log_error("File thread | Failed to connect to server: %s:%d",
+    log_error("Falha ao conectar com o servidor: %s:%d",
               this->server_ip.c_str(), this->server_port.c_str());
     close(sock);
   }
 
-  std::cout << "conectado na porta " << this->file_watcher_port << std::endl;
-
-  // recebi uma porta de arugmento na thread
-  // crio um socket e me conecto nessa porta
+  log_info("File thread conectado na porta: %d", this->file_watcher_port);
 
   NetworkManager file_watcher_manager(sock, "FileWatcherManager");
-  log_info("File thread | Connected to server: %s:%d", this->server_ip.c_str(),
-           this->file_watcher_port);
 
   int inotifyFd = inotify_init1(IN_NONBLOCK);
   if (inotifyFd < 0) {
-    log_error("Could not initiate inotify");
+    log_error("Não foi possível inicializar inotify");
     return;
   }
   int watchDescriptor =
       inotify_add_watch(inotifyFd, sync_dir, IN_DELETE | IN_CLOSE_WRITE);
   if (watchDescriptor < 0) {
-    log_error("Could not initiate watchDescriptor");
+    log_error("Não foi possível inicializar watchDescriptor");
     return;
   }
 
@@ -231,10 +219,7 @@ void Client::handleFileThread() {
 }
 
 void Client::handlePushThread() {
-  // OBJETIVO: RECEBE OS DADOS DO SERVIDOR E TRATA DE ACORDO
-  log_info("INICIANDO THREAD PUSH");
-
-  // I) Cria socket para tratar os dados enviados pelo servidor
+  log_info("Inicializado Push Thread com ID %d ", std::this_thread::get_id());
 
   int sock = socket(AF_INET, SOCK_STREAM, 0);
   if (sock < 0) {
@@ -245,21 +230,22 @@ void Client::handlePushThread() {
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(this->push_port);
   if (inet_pton(AF_INET, this->server_ip.c_str(), &server_addr.sin_addr) <= 0) {
-    log_error("File thread | Invalid IP address: %s", this->server_ip.c_str());
+    log_error("IP inválido: %s", this->server_ip.c_str());
     close(sock);
     return;
   }
   if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    log_error("File thread | Failed to connect to server: %s:%d",
+    log_error("Failed to connect to server: %s:%d",
               this->server_ip.c_str(), this->server_port.c_str());
     close(sock);
   }
-  std::cout << "conectado na porta " << this->push_port << std::endl;
+
+  log_info("Push thread conectado na porta: %d", this->file_watcher_port);
 
   NetworkManager push_receiver(sock);
 
   while (true) {
-    std::cout << "ESPERANDO PUSHS...\n";
+    log_info("Aguardando push do servidor...");;
     packet pkt = push_receiver.receivePacket();
     std::istringstream payload_stream(pkt._payload);
     std::string command;
@@ -272,7 +258,7 @@ void Client::handlePushThread() {
       sync_dir_file_manager->clearFile(file_name);
 
       bool stop = false;
-      std::cout << "Recebendo arquivo: " << file_name << std::endl;
+      log_info("Recebendo arquivo: %s", file_name.c_str());
       watcher_push_lock.lock();
       while (!stop) {
         packet pkt_received = push_receiver.receivePacket();
@@ -281,8 +267,6 @@ void Client::handlePushThread() {
         if (pkt_string == "END_OF_FILE") {
           stop = true;
           break;
-        } else {
-          std::cout << "Waiting for more Data..." << std::endl;
         }
 
         std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
@@ -297,7 +281,7 @@ void Client::handlePushThread() {
       sync_dir_file_manager->deleteFile(file_name);
 
     } else {
-      std::cout << "ERRO";
+      log_error("Comando desconhecido recebido do servidor: %s", command.c_str());
     }
   }
 }
@@ -306,17 +290,12 @@ Client::Client(std::string _client_name, std::string _server_ip,
                std::string _server_port)
     : client_name(_client_name), server_ip(_server_ip),
       server_port(_server_port) {
-
-  // TODO: log parameters
-  // faz conexao inicial com o servidor
-
   int server_port_int = std::stoi(server_port);
 
   int sock = 0;
   struct sockaddr_in serv_addr;
   char buffer[1024] = {0};
 
-  // Criar o socket
   if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     std::cerr << "Erro ao criar o socket" << std::endl;
   }
@@ -324,12 +303,10 @@ Client::Client(std::string _client_name, std::string _server_ip,
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_port = htons(server_port_int);
 
-  // Converter o endereço IP para binário
   if (inet_pton(AF_INET, server_ip.c_str(), &serv_addr.sin_addr) <= 0) {
     std::cerr << "Endereço (" << server_ip << ") inválido ou não suportado" << std::endl;
   }
 
-  // Conectar ao servidor
   while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     int err = errno;
     log_warn("Falha (errno=%d) ao conectar ao servidor. Cliente irá esperar 500ms", errno);
@@ -337,7 +314,7 @@ Client::Client(std::string _client_name, std::string _server_ip,
     std::this_thread::sleep_for(sleep_time);
   }
 
-  std::cout << "Conectado ao servidor!" << std::endl;
+  log_info("Conectado ao servidor");
 
   this->command_manager = new NetworkManager(sock, "CommandManager"); // é o socket de commandos, tem que passar para a thread de IO
   std::string command = client_name;
@@ -349,16 +326,13 @@ Client::Client(std::string _client_name, std::string _server_ip,
   std::string payload(pkt._payload);
   std::string port_str = payload.substr(payload.find(" ") + 1);
   int port = std::stoi(port_str);
-  std::cout << "Porta recebida do servidor: " << port << std::endl;
   this->push_port = port;
 
   // recebe o segundo pacote do server
   packet pkt2 = command_manager->receivePacket();
   std::string payload2(pkt2._payload);
-  std::cout << "Recebido do servidor: " << pkt2._payload << std::endl;
   std::string port_str2 = payload2.substr(payload2.find(" ") + 1);
   int port2 = std::stoi(port_str2);
-  std::cout << "Porta recebida do servidor: " << port2 << std::endl;
   this->file_watcher_port = port2;
 
   this->sync_dir_file_manager = new FileManager("sync_dir");
@@ -368,7 +342,6 @@ Client::Client(std::string _client_name, std::string _server_ip,
   this->network_thread = std::thread(g_handlePushThread, this);
   this->file_thread = std::thread(g_handleFileThread, this);
 
-  // If the main thread finishes, all the other threads are prematurely finished.
   io_thread.join();
   network_thread.join();
   file_thread.join();

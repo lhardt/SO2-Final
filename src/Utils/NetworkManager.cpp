@@ -233,14 +233,6 @@ void NetworkManager::serializePacket(const packet &pkt, char *buffer,
   if (pkt._payload != nullptr && pkt.length > 0) {
     std::memcpy(buffer + offset, pkt._payload, pkt.length);
   }
-
-  // Printar o buffer serializado em formato hexadecimal
-  // std::cout << "Pacote serializado (hex): ";
-  // for (size_t i = 0; i < buffer_size; ++i) {
-  //   std::cout << std::hex << std::uppercase
-  //             << (unsigned int)(unsigned char)buffer[i] << " ";
-  // }
-  // std::cout << std::dec << std::endl; // Voltar para decimal
 }
 
 packet NetworkManager::deserializePacket(const char *buffer,
@@ -256,14 +248,6 @@ packet NetworkManager::deserializePacket(const char *buffer,
   u_int16_t net_seqn;
   u_int32_t net_total_size;
   u_int16_t net_length;
-
-  // Printar o buffer serializado em formato hexadecimal
-  // std::cout << "Pacote antes de ser deserializado (hex): ";
-  // for (size_t i = 0; i < buffer_size; ++i) {
-  //   std::cout << std::hex << std::uppercase
-  //             << (unsigned int)(unsigned char)buffer[i] << " ";
-  // }
-  // std::cout << std::dec << std::endl; // Voltar para decimal
 
   std::memcpy(&net_type, buffer + offset, sizeof(net_type));
   offset += sizeof(net_type);
@@ -327,7 +311,7 @@ int NetworkManager::createAndSetupSocket() {
   }
 
   int port = ntohs(addr.sin_port);
-  std::cout << "Socket de escuta criado na porta: " << port << std::endl;
+  log_info("Socket de escuta criado na porta: %d", port);
 
   // Armazena o socket de escuta no atributo do objeto
   this->socket_fd = listen_socket_fd;
@@ -337,7 +321,6 @@ int NetworkManager::createAndSetupSocket() {
 }
 
 void NetworkManager::acceptConnection() {
-  // std::cout << "esperando conexao na porta: " << socket_fd << std::endl;
   if (socket_fd == -1) {
     throw std::runtime_error("Socket não inicializado para aceitar conexões");
   }
@@ -349,7 +332,7 @@ void NetworkManager::acceptConnection() {
   }
   int port = ntohs(addr.sin_port);
 
-  std::cout << "Esperando conexão na porta: " << port << std::endl;
+  log_info("Esperando conexão na porta: %d", port);
 
   sockaddr_in client_addr;
   socklen_t client_addrlen = sizeof(client_addr);
@@ -359,7 +342,7 @@ void NetworkManager::acceptConnection() {
     throw std::runtime_error("Falha ao aceitar conexão do cliente");
   }
 
-  std::cout << "Conexão aceita de cliente!" << std::endl;
+  log_info("Conexão aceita de cliente!");
 
   // Fecha o socket de escuta
   close(socket_fd);
@@ -373,6 +356,6 @@ void NetworkManager::closeConnection() {
     shutdown(socket_fd, SHUT_RDWR); // garante despertar o recv()
     close(socket_fd);
     socket_fd = -1;
-    std::cout << name << " Fechou conexão!" << std::endl;
+    log_info("%s Fechou conexão", name.c_str());
   }
 }

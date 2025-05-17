@@ -25,11 +25,6 @@ int main(int argc, char **argv) {
   logger_open("logger.log");
   log_info("Hello from CLIENT, SO2-Final!\n");
 
-  // TODO: get info from argc/argv
-  // primeiro argumento username
-  // segundo argumento ip do servidor
-  // terceiro argumento porta do servidor
-
   if (argc < 3) {
     std::cerr << "Uso: " << argv[0] << " <username> <ip> <port>" << std::endl;
     return -1;
@@ -38,10 +33,6 @@ int main(int argc, char **argv) {
   std::string server_ip = argv[2];
   std::string server_port = argv[3];
 
-  // send(sock, username.c_str(), username.size(), 0);
-  // std::cout << "Nome de usuário enviado: " << username << std::endl;
-
-  // criar sync_dir
   Client *client = new Client(username, server_ip, server_port);
   return 0;
 }

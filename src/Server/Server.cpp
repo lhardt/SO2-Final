@@ -18,7 +18,7 @@ struct ThreadArg {
 
 extern "C" void *client_thread_entry(void *raw) {
   auto *ta = static_cast<ThreadArg *>(raw);
-  cout << "Entrando na thread do cliente!" << endl;
+  log_info("Entrando na thread do cliente com ID");
   ta->manager->handle_new_connection(ta->sock_fd);
   delete ta; // evitar leak
   return nullptr;
@@ -86,34 +86,20 @@ void Server::run() {
       perror("accept");
       exit(EXIT_FAILURE);
     }
-    cout << "Nova conexão recebida" << endl;
+    log_info("Nova conexão recebida");
     NetworkManager network_manager(new_socket_fd, "server");
     // espera um pacote com payload sendo o username
     packet pkt = network_manager.receivePacket();
-    std::cout << "Recebido do cliente: " << pkt._payload << std::endl;
-
     std::string username(pkt._payload);
-    std::cout << "Username recebido: " << username << std::endl;
-
-    // // Espera receber o username do cliente no socket
-    // memset(buffer, 0, sizeof(buffer));
-    // int valread = read(new_socket_fd, buffer,
-    //                    sizeof(buffer) - 1); // Leave space for null
-    //                    terminator
-    // if (valread <= 0) {
-    //   close(new_socket_fd);
-    //   continue;
-    // }
-    // buffer[valread] = '\0'; // Null-terminate the string
-    // std::string username(buffer, valread);
+    log_info("Recebido username: %s", username.c_str());
 
     if (ClientManager *manager = clientExists(username)) {
       // Se o cliente já existe, entrega o socket para o manager
-      cout << "Cliente já existe, entregando socket para o manager..." << endl;
+      log_info("Cliente já existe, entregando socket para o manager");
       deliverToManager(manager, new_socket_fd);
     } else {
       // Se o cliente não existe, cria um novo manager e entrega o socket
-      cout << "Criando novo client manager..." << endl;
+      log_info("Cliente não existe, criando novo client manager");
       createNewManager(username, new_socket_fd);
     }
   }
