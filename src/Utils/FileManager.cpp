@@ -137,13 +137,34 @@ uint64_t FileManager::hash_file_fnv1a(const std::string &filename) {
 
 std::string FileManager::getFiles() {
   std::ostringstream result;
+
   for (const auto &entry : fs::directory_iterator(base_directory)) {
     if (fs::is_regular_file(entry)) {
-      std::string file_name = entry.path().filename().string();
-      std::string mod_time = getFileModificationTime(file_name);
-      result << file_name << " (Last Modified: " << mod_time << ")\n";
+      auto path = entry.path();
+      std::string file_name = path.filename().string();
+
+      // Modification time (mtime)
+      auto ftime = fs::last_write_time(entry);
+      auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+          ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+      std::time_t mtime = std::chrono::system_clock::to_time_t(sctp);
+
+      struct stat file_stat;
+      if (stat(path.c_str(), &file_stat) == 0) {
+        std::time_t atime = file_stat.st_atime; // Access time
+        std::time_t ctime = file_stat.st_ctime; // Change time
+
+        result << file_name
+               << " (mtime: " << std::put_time(std::localtime(&mtime), "%Y-%m-%d %H:%M:%S")
+               << ", atime: " << std::put_time(std::localtime(&atime), "%Y-%m-%d %H:%M:%S")
+               << ", ctime: " << std::put_time(std::localtime(&ctime), "%Y-%m-%d %H:%M:%S")
+               << ")\n";
+      } else {
+        result << file_name << " (erro ao obter stat)\n";
+      }
     }
   }
+
   return result.str();
 }
 

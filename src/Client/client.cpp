@@ -117,11 +117,9 @@ void Client::handleIoThread() {
         }
 
         std::vector<char> data_filenames(pkt_received._payload, pkt_received._payload + pkt_received.length);
-        // vector<char> é um string no formato "teste1.txt teste2.pdf"
-        if (data_filenames.size() > 0) {
-          std::cout << "Received filenames: ";
+        if (!data_filenames.empty()) {
+          std::cout << std::string(data_filenames.begin(), data_filenames.end()) << std::endl;
         }
-        std::cout << std::string(data_filenames.begin(), data_filenames.end()) << std::endl;
       }
 
     } else if (regex_match(cmdline, cmdarg, lcl)) {
