@@ -131,11 +131,11 @@ void Client::handleIoThread() {
         std::cout << "No files found in the local directory.\n";
       }
     } else if (regex_match(cmdline, cmdarg, gsd)) {
-      // getSyncDir();
+      std::cout <<" Sync Dir path is ./sync_dir" << std::endl;
     } else if (regex_match(cmdline, cmdarg, ext)) {
       exit(0);
     } else {
-      std::cout << "Comando nao reconhecido, tente novamente." << std::endl;
+      std::cout << "Comando <<" << cmdline << ">> nao reconhecido, tente novamente." << std::endl;
     }
   }
 }
