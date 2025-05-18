@@ -1,12 +1,12 @@
 #include "FileManager.hpp"
 #include "logger.hpp"
-#include <fstream>
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <cstdint>
 
 const uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
 const uint64_t FNV_PRIME = 1099511628211ULL;
@@ -17,14 +17,12 @@ FileManager::FileManager(std::string base_directory_path) : base_directory(base_
 
   if (stat(base_directory.c_str(), &info) != 0) {
     createDirectory(base_directory);
-  }else if (info.st_mode & S_IFDIR) {
+  } else if (info.st_mode & S_IFDIR) {
     log_info("Diretório base já existe: %s", base_directory.c_str());
-  }else {
+  } else {
     throw std::runtime_error("Base directory is not a directory");
   }
 }
-
-
 
 void FileManager::createDirectory(const std::string &path) {
   if (mkdir(path.c_str(), 0777) != 0) {
@@ -32,15 +30,11 @@ void FileManager::createDirectory(const std::string &path) {
   }
 }
 
-
-
 void FileManager::deleteDirectory(const std::string &path) {
   if (rmdir(path.c_str()) != 0) {
     throw std::runtime_error("Falha ao deletar diretório: " + path);
   }
 }
-
-
 
 std::string FileManager::getBaseDirectory() { return base_directory; }
 
@@ -57,8 +51,6 @@ std::vector<char> FileManager::readFile(const std::string &file_name) {
   return buffer;
 }
 
-
-
 void FileManager::createFile(const std::string &file_name) {
   std::string file_path = base_directory + "/" + file_name;
   log_info("Criando arquivo: %s", file_path.c_str());
@@ -68,16 +60,12 @@ void FileManager::createFile(const std::string &file_name) {
   }
 }
 
-
-
 void FileManager::clearFile(const std::string &file_name) {
   std::string file_path = base_directory + "/" + file_name;
   std::ofstream ofs;
   ofs.open(file_path, std::ofstream::out | std::ofstream::trunc);
   ofs.close();
 }
-
-
 
 void FileManager::writeFile(const std::string &file_name, const std::vector<char> &data) {
   std::string file_path = base_directory + "/" + file_name;
@@ -89,7 +77,7 @@ void FileManager::writeFile(const std::string &file_name, const std::vector<char
   file.write(data.data(), data.size());
 }
 
-//Para debug
+// Para debug
 void FileManager::printFile(const std::string &file_name) {
   std::string file_path = base_directory + "/" + file_name;
   std::cout << "Printing file: " << file_path << std::endl;
@@ -106,6 +94,9 @@ void FileManager::printFile(const std::string &file_name) {
 void FileManager::deleteFile(const std::string &file_name) {
   std::string file_path = base_directory + "/" + file_name;
   log_info("Deletando arquivo: %s", file_path.c_str());
+  if (!isFileExists(file_name)) {
+    return;
+  }
   if (remove(file_path.c_str()) != 0) {
     throw std::runtime_error("Falha ao deletar arquivo: " + file_path);
   }
@@ -117,48 +108,61 @@ bool FileManager::isFileExists(const std::string &file_name) {
   return file.good();
 }
 
-bool FileManager::checkFileHashchanged(std::string &file_name_original,std::string &file_name_copy){
+bool FileManager::checkFileHashchanged(std::string &file_name_original, std::string &file_name_copy) {
   log_info("Comparando Hash dos arquivos: %s %s", file_name_original.c_str(), file_name_copy.c_str());
 
-  if(hash_file_fnv1a(file_name_original) == hash_file_fnv1a(file_name_copy))
+  if (hash_file_fnv1a(file_name_original) == hash_file_fnv1a(file_name_copy))
     return false;
   return true;
 }
 
-uint64_t FileManager::hash_file_fnv1a(const std::string& filename) {
+uint64_t FileManager::hash_file_fnv1a(const std::string &filename) {
   std::ifstream file(filename, std::ios::binary);
-  if (!file) throw std::runtime_error("Erro ao abrir o arquivo: " + filename);
+  if (!file)
+    throw std::runtime_error("Erro ao abrir o arquivo: " + filename);
 
   uint64_t hash = FNV_OFFSET_BASIS;
   char buffer[8192]; // buffer de 8KB
 
   while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
-      std::streamsize bytes = file.gcount();
-      for (std::streamsize i = 0; i < bytes; ++i) {
-          hash ^= static_cast<uint8_t>(buffer[i]);
-          hash *= FNV_PRIME;
-      }
+    std::streamsize bytes = file.gcount();
+    for (std::streamsize i = 0; i < bytes; ++i) {
+      hash ^= static_cast<uint8_t>(buffer[i]);
+      hash *= FNV_PRIME;
+    }
   }
 
   return hash;
 }
 
 std::string FileManager::getFiles() {
-  std::ostringstream oss;
-
-  try {
-    for (const auto &entry : fs::directory_iterator(this->base_directory)) {
-      if (entry.is_regular_file()) {
-        oss << entry.path().filename().string() << " ";
-      }
+  std::ostringstream result;
+  for (const auto &entry : fs::directory_iterator(base_directory)) {
+    if (fs::is_regular_file(entry)) {
+      std::string file_name = entry.path().filename().string();
+      std::string mod_time = getFileModificationTime(file_name);
+      result << file_name << " (Last Modified: " << mod_time << ")\n";
     }
-  } catch (const fs::filesystem_error &e) {
-    std::cerr << "Erro: " << e.what() << std::endl;
   }
-
-  return oss.str();
+  return result.str();
 }
 
-void FileManager::renameFile(const std::string &file_name,const std::string &new_name){
+void FileManager::renameFile(const std::string &file_name, const std::string &new_name) {
   std::filesystem::rename(file_name, new_name);
+}
+
+std::string FileManager::getFileModificationTime(const std::string &file_name) {
+  fs::path file_path = base_directory + "/" + file_name;
+  if (!fs::exists(file_path)) {
+    return "File does not exist";
+  }
+
+  auto ftime = fs::last_write_time(file_path);
+  auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+      ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+  std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
+
+  std::ostringstream oss;
+  oss << std::put_time(std::localtime(&cftime), "%Y-%m-%d %H:%M:%S");
+  return oss.str();
 }
