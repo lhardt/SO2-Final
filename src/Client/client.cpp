@@ -95,11 +95,10 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, del)) {
       std::string file_name = cmdarg[1].str();
-      if(sync_dir_file_manager->isFileExists(file_name)){
+      if (sync_dir_file_manager->isFileExists(file_name)) {
         log_info("Deletando arquivo: %s", file_name.c_str());
         sync_dir_file_manager->deleteFile(file_name);
-      }
-      else{
+      } else {
         log_info("Arquivo não encontrado.");
         continue;
       }
@@ -118,20 +117,19 @@ void Client::handleIoThread() {
         }
 
         std::vector<char> data_filenames(pkt_received._payload, pkt_received._payload + pkt_received.length);
-        // vector<char> é um string no formato "teste1.txt teste2.pdf"
-        if (data_filenames.size() > 0) {
-          std::cout << "Received filenames: ";
+        if (!data_filenames.empty()) {
+          std::cout << std::string(data_filenames.begin(), data_filenames.end()) << std::endl;
         }
-        std::cout << std::string(data_filenames.begin(), data_filenames.end()) << std::endl;
       }
 
     } else if (regex_match(cmdline, cmdarg, lcl)) {
-      std::string file_names = sync_dir_file_manager->getFiles();
-      if (file_names.size() > 0) {
-        std::cout << "Local filenames: ";
+      std::string file_info = sync_dir_file_manager->getFiles();
+      if (!file_info.empty()) {
+        std::cout << "Local files:\n"
+                  << file_info;
+      } else {
+        std::cout << "No files found in the local directory.\n";
       }
-      std::cout << std::string(file_names.begin(), file_names.end()) << std::endl;
-
     } else if (regex_match(cmdline, cmdarg, gsd)) {
       // getSyncDir();
     } else if (regex_match(cmdline, cmdarg, ext)) {
@@ -253,7 +251,8 @@ void Client::handlePushThread() {
   NetworkManager push_receiver(sock);
 
   while (true) {
-    log_info("Aguardando push do servidor...");;
+    log_info("Aguardando push do servidor...");
+    ;
     packet pkt = push_receiver.receivePacket();
     std::istringstream payload_stream(pkt._payload);
     std::string command;
