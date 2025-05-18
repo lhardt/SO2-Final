@@ -95,8 +95,14 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, del)) {
       std::string file_name = cmdarg[1].str();
-      log_info("Deletando arquivo: %s", file_name.c_str());
-      sync_dir_file_manager->deleteFile(file_name);
+      if(sync_dir_file_manager->isFileExists(file_name)){
+        log_info("Deletando arquivo: %s", file_name.c_str());
+        sync_dir_file_manager->deleteFile(file_name);
+      }
+      else{
+        log_info("Arquivo não encontrado.");
+        continue;
+      }
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;
