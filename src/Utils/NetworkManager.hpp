@@ -46,6 +46,7 @@ public:
   int createAndSetupSocket();
   void acceptConnection();
   void closeSocket();
+  void connectTo(const std::string &ip, int port);
 
 private:
   int socket_fd;

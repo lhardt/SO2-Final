@@ -1,8 +1,8 @@
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include <chrono>
-#include <string>
 #include <mutex>
+#include <string>
 #include <thread>
 
 typedef class Client Client;
@@ -34,7 +34,7 @@ private:
   int file_watcher_port;
   int push_port;
   NetworkManager *file_watcher_manager;
-  NetworkManager *push_manager;
+  NetworkManager *push_receiver;
   NetworkManager *command_manager;
   FileManager *sync_dir_file_manager;
   FileManager *curr_directory_file_manager;

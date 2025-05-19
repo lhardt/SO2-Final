@@ -131,7 +131,7 @@ void Client::handleIoThread() {
         std::cout << "No files found in the local directory.\n";
       }
     } else if (regex_match(cmdline, cmdarg, gsd)) {
-      std::cout <<" Sync Dir path is ./sync_dir" << std::endl;
+      std::cout << " Sync Dir path is ./sync_dir" << std::endl;
     } else if (regex_match(cmdline, cmdarg, ext)) {
       exit(0);
     } else {
@@ -144,31 +144,10 @@ void Client::handleFileThread() {
   log_info("Inicializado File Thread com ID %d ", std::this_thread::get_id());
   static constexpr char *sync_dir = "sync_dir";
 
-  int sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock < 0) {
-    log_error("Erro ao criar socket");
-    return;
-  }
-
-  sockaddr_in server_addr{};
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(this->file_watcher_port);
-
-  if (inet_pton(AF_INET, this->server_ip.c_str(), &server_addr.sin_addr) <= 0) {
-    log_error("IP inválido: %s", this->server_ip.c_str());
-    close(sock);
-    return;
-  }
-
-  if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    log_error("Falha ao conectar com o servidor: %s:%d",
-              this->server_ip.c_str(), this->server_port.c_str());
-    close(sock);
-  }
+  this->file_watcher_manager = new NetworkManager("FileWatcher");
+  this->file_watcher_manager->connectTo(this->server_ip, this->file_watcher_port);
 
   log_info("File thread conectado na porta: %d", this->file_watcher_port);
-
-  NetworkManager file_watcher_manager(sock, "FileWatcherManager");
 
   int inotifyFd = inotify_init1(IN_NONBLOCK);
   if (inotifyFd < 0) {
@@ -208,14 +187,14 @@ void Client::handleFileThread() {
           log_info("Arquivo modificado: %s", file_name.c_str());
           std::string command = "WRITE " + file_name;
           watcher_push_lock.lock();
-          file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
-          file_watcher_manager.sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
+          file_watcher_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          file_watcher_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
           watcher_push_lock.unlock();
 
         } else if (event->mask & IN_DELETE) {
           log_info("Arquivo removido: %s", filepath.c_str());
           std::string command = "DELETE " + std::string(event->name);
-          file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          file_watcher_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
         }
       }
 
@@ -227,33 +206,14 @@ void Client::handleFileThread() {
 void Client::handlePushThread() {
   log_info("Inicializado Push Thread com ID %d ", std::this_thread::get_id());
 
-  int sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock < 0) {
-    log_error("Erro ao criar socket");
-    return;
-  }
-  sockaddr_in server_addr{};
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(this->push_port);
-  if (inet_pton(AF_INET, this->server_ip.c_str(), &server_addr.sin_addr) <= 0) {
-    log_error("IP inválido: %s", this->server_ip.c_str());
-    close(sock);
-    return;
-  }
-  if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    log_error("Falha ao conectar com servidor: %s:%d",
-              this->server_ip.c_str(), this->server_port.c_str());
-    close(sock);
-  }
-
+  this->push_receiver = new NetworkManager("PushReceiver");
+  this->push_receiver->connectTo(this->server_ip, this->push_port);
   log_info("Push thread conectado na porta: %d", this->file_watcher_port);
-
-  NetworkManager push_receiver(sock);
 
   while (true) {
     log_info("Aguardando push do servidor...");
     ;
-    packet pkt = push_receiver.receivePacket();
+    packet pkt = push_receiver->receivePacket();
     std::istringstream payload_stream(pkt._payload);
     std::string command;
     payload_stream >> command;
@@ -268,7 +228,7 @@ void Client::handlePushThread() {
       log_info("Recebendo arquivo: %s", file_name.c_str());
       watcher_push_lock.lock();
       while (!stop) {
-        packet pkt_received = push_receiver.receivePacket();
+        packet pkt_received = push_receiver->receivePacket();
         std::string pkt_string = std::string(pkt_received._payload, pkt_received.length);
 
         if (pkt_string == "END_OF_FILE") {

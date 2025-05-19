@@ -1,6 +1,7 @@
 #include "NetworkManager.hpp"
-#include "logger.hpp"
 #include "FileManager.hpp"
+#include "logger.hpp"
+#include <arpa/inet.h>
 #include <cstddef>
 #include <cstring>
 #include <fstream>
@@ -357,5 +358,21 @@ void NetworkManager::closeConnection() {
     close(socket_fd);
     socket_fd = -1;
     log_info("%s Fechou conexão", name.c_str());
+  }
+}
+
+void NetworkManager::connectTo(const std::string &ip, int port) {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket não inicializado para conexão");
+  }
+
+  sockaddr_in server_addr;
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons(port);
+  inet_pton(AF_INET, ip.c_str(), &server_addr.sin_addr);
+
+  if (connect(socket_fd, (struct sockaddr *)&server_addr,
+              sizeof(server_addr)) == -1) {
+    throw std::runtime_error("Falha ao conectar ao servidor");
   }
 }
