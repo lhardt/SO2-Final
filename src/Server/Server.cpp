@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "../Utils/Command.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include "../Utils/logger.hpp"
 #include <arpa/inet.h>
@@ -89,8 +90,9 @@ void Server::run() {
     log_info("Nova conexão recebida");
     NetworkManager network_manager(new_socket_fd, "server");
     // espera um pacote com payload sendo o username
-    packet pkt = network_manager.receivePacket();
-    std::string username(pkt._payload);
+    ReceiveMessageCommand cmd(&network_manager);
+    cmd.execute();
+    std::string username(cmd.getMessage());
     log_info("Recebido username: %s", username.c_str());
 
     if (ClientManager *manager = clientExists(username)) {

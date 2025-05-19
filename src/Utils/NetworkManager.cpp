@@ -362,6 +362,8 @@ void NetworkManager::closeConnection() {
 }
 
 void NetworkManager::connectTo(const std::string &ip, int port) {
+  int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+
   if (socket_fd == -1) {
     throw std::runtime_error("Socket não inicializado para conexão");
   }
@@ -375,4 +377,5 @@ void NetworkManager::connectTo(const std::string &ip, int port) {
               sizeof(server_addr)) == -1) {
     throw std::runtime_error("Falha ao conectar ao servidor");
   }
+  this->socket_fd = socket_fd;
 }

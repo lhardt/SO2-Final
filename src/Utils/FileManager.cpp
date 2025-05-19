@@ -1,5 +1,6 @@
 #include "FileManager.hpp"
 #include "logger.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -187,3 +188,7 @@ std::string FileManager::getFileModificationTime(const std::string &file_name) {
   oss << std::put_time(std::localtime(&cftime), "%Y-%m-%d %H:%M:%S");
   return oss.str();
 }
+
+// size_t FileManager::getFileSize(const std::string &file_name) {
+//   size_t total;
+// }

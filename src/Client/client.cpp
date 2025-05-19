@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "../Utils/Command.hpp"
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include "../Utils/logger.hpp"
@@ -69,8 +70,8 @@ void Client::handleIoThread() {
     } else if (regex_match(cmdline, cmdarg, dow)) { // faz uma copia nao sincronizada do arquivo para o diretorio local(de onde foi chamado o cliente)
       std::string file_name = cmdarg[1].str();
       std::string command = "DOWNLOAD " + file_name;
-
-      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      // command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      SendMessageCommand(command, command_manager).execute();
       // espera resposta do servidor...
       packet response = command_manager->receivePacket();
       if (std::string(response._payload, response.length) == "FILE_NOT_FOUND") {
@@ -79,19 +80,20 @@ void Client::handleIoThread() {
       } else if (std::string(response._payload, response.length) == "FILE_FOUND") {
         log_info("Arquivo encontrado no servidor.");
       }
-      curr_directory_file_manager->createFile(file_name);
-      bool stop = false;
-      log_info("Escrevendo arquivo: %s", file_name.c_str());
-      while (!stop) {
-        packet pkt_received = command_manager->receivePacket();
-        if (std::string(pkt_received._payload, pkt_received.length) ==
-            "END_OF_FILE") {
-          stop = true;
-          break;
-        }
-        std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
-        curr_directory_file_manager->writeFile(file_name, data);
-      }
+      // curr_directory_file_manager->createFile(file_name);
+      // bool stop = false;
+      // log_info("Escrevendo arquivo: %s", file_name.c_str());
+      // while (!stop) {
+      //   packet pkt_received = command_manager->receivePacket();
+      //   if (std::string(pkt_received._payload, pkt_received.length) ==
+      //       "END_OF_FILE") {
+      //     stop = true;
+      //     break;
+      //   }
+      //   std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
+      //   curr_directory_file_manager->writeFile(file_name, data);
+      // }
+      ReceiveFileCommand(file_name, command_manager, curr_directory_file_manager).execute();
 
     } else if (regex_match(cmdline, cmdarg, del)) {
       std::string file_name = cmdarg[1].str();
@@ -106,7 +108,8 @@ void Client::handleIoThread() {
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;
       std::string command = "LIST";
-      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      // command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      SendMessageCommand(command, command_manager).execute();
 
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();
@@ -187,14 +190,17 @@ void Client::handleFileThread() {
           log_info("Arquivo modificado: %s", file_name.c_str());
           std::string command = "WRITE " + file_name;
           watcher_push_lock.lock();
-          file_watcher_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
-          file_watcher_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
+          // file_watcher_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          // file_watcher_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
+          SendMessageCommand(command, file_watcher_manager).execute();
+          SendFileCommand(file_name, file_watcher_manager, sync_dir_file_manager).execute();
           watcher_push_lock.unlock();
 
         } else if (event->mask & IN_DELETE) {
           log_info("Arquivo removido: %s", filepath.c_str());
           std::string command = "DELETE " + std::string(event->name);
-          file_watcher_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          // file_watcher_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          SendMessageCommand(command, file_watcher_manager).execute();
         }
       }
 
@@ -285,7 +291,8 @@ Client::Client(std::string _client_name, std::string _server_ip,
 
   this->command_manager = new NetworkManager(sock, "CommandManager"); // é o socket de commandos, tem que passar para a thread de IO
   std::string command = client_name;
-  command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+  // command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+  SendMessageCommand(command, command_manager).execute();
 
   // recebe o primeiro pacote do server
   packet pkt = command_manager->receivePacket();

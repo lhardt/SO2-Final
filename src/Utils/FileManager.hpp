@@ -27,4 +27,5 @@ public:
   void renameFile(const std::string &file_name, const std::string &new_name);
   std::string getFileModificationTime(const std::string &file_name);
   std::string getFiles();
+  size_t getFileSize(const std::string &file_name);
 };
