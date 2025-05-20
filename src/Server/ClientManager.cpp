@@ -15,19 +15,11 @@ ClientManager::ClientManager(string username) : username(username), max_devices(
 void ClientManager::handle_new_connection(int socket) {
   std::lock_guard<std::mutex> lock(device_mutex);
   try {
-    if (devices.size() == max_devices) {
-      log_warn("Limite de dispositivos atingido.");
-      NetworkManager network_manager(socket, "Limite de dispositivos");
-      SendMessageCommand cmd("Limite de dispositivos atingido", &network_manager);
-      cmd.execute();
-      network_manager.closeConnection();
+    if (checkNumDevicesFilled()) {
+      refuseConnection(socket, "Limite de dispositivos atingido");
       return;
     }
-    log_info("Criando novo device");
-    Device *device = new Device(socket, this, file_manager);
-    devices.push_back(device);
-    device_mutex.unlock();
-    log_info("Dispositivos conectados: %d", devices.size());
+    Device *device = createNewDevice(socket);
     device->start();
     log_info("Dispositivos conectados: %d", devices.size());
   } catch (const std::exception &e) {
@@ -46,6 +38,8 @@ void ClientManager::handle_new_push(string command, Device *caller) {
     if (device != caller)
       device->sendPushTo(command);
   }
+  // TODO
+  // avisar o mediator para ele dar push para os outros servers
 }
 
 void ClientManager::removeDevice(Device *device) {
@@ -62,4 +56,28 @@ void ClientManager::removeDevice(Device *device) {
   } catch (const std::exception &e) {
     log_error("Erro ao remover dispositivo: %s", e.what());
   }
+}
+
+bool ClientManager::checkNumDevicesFilled() {
+  std::lock_guard<std::mutex> lock(device_mutex);
+  return (this->devices.size() == max_devices);
+};
+
+void ClientManager::refuseConnection(int socket, std::string msg) {
+  log_warn("Limite de dispositivos atingido.");
+  NetworkManager network_manager(socket, msg);
+  SendMessageCommand cmd("Limite de dispositivos atingido", &network_manager);
+  cmd.execute();
+  network_manager.closeConnection();
+  return;
+}
+
+Device *ClientManager::createNewDevice(int socket) {
+  log_info("Criando novo device");
+  Device *device = new Device(socket, this, file_manager);
+  device_mutex.lock();
+  devices.push_back(device);
+  device_mutex.unlock();
+  log_info("Dispositivos conectados: %d", devices.size());
+  return device;
 }

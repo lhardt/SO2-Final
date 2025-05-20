@@ -1,20 +1,19 @@
 #pragma once
-#include "Device.hpp"
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
+#include "Device.hpp"
 #include <iostream>
 #include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
 #include <vector>
-#include "Device.hpp"
 
 #define MAX_DEVICES 2
 
 using namespace std;
 class Device;
-class ClientManager{
+class ClientManager {
 
 public:
   ClientManager(string username);
@@ -26,8 +25,12 @@ public:
 private:
   vector<Device *> devices;
   FileManager *file_manager;
-  NetworkManager *network_manager;
+  NetworkManager *client_network_manager;
   int max_devices;
   string username;
   std::mutex device_mutex; // Mutex para proteger o acesso à lista de dispositivos
+
+  bool checkNumDevicesFilled();
+  void refuseConnection(int socket, std::string msg);
+  Device *createNewDevice(int socket);
 };

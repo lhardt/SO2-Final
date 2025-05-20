@@ -24,3 +24,13 @@ private:
   void createNewManager(std::string username, int sock_file_descriptor);
   void deliverToManager(ClientManager *manager, int socket);
 };
+
+class MediatorServer : public Server {
+public:
+  MediatorServer();
+
+private:
+  NetworkManager *push_retransmitter;
+  NetworkManager *watcher_retransmitter;
+  NetworkManager *command_retransmitter;
+};
