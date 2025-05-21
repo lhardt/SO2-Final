@@ -379,3 +379,27 @@ void NetworkManager::connectTo(const std::string &ip, int port) {
   }
   this->socket_fd = socket_fd;
 }
+
+bool NetworkManager::hasPendingPacket() {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket not initialized");
+  }
+
+  char buffer[1]; // Buffer temporário para verificar dados
+  ssize_t result = recv(socket_fd, buffer, sizeof(buffer), MSG_PEEK);
+
+  if (result > 0) {
+    return true; // Há dados disponíveis
+  } else if (result == 0) {
+    // Conexão fechada pelo peer
+    return false;
+  } else {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      // Nenhum dado disponível no momento
+      return false;
+    } else {
+      // Outro erro ocorreu
+      throw std::runtime_error("Error checking pending packet");
+    }
+  }
+}

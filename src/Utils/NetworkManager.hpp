@@ -47,6 +47,7 @@ public:
   void acceptConnection();
   void closeSocket();
   void connectTo(const std::string &ip, int port);
+  bool hasPendingPacket();
 
 private:
   int socket_fd;
