@@ -9,8 +9,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define PORT 4000
-
 struct ThreadArg {
   ClientManager *manager;
   int sock_fd;
@@ -24,10 +22,8 @@ extern "C" void *client_thread_entry(void *raw) {
   return nullptr;
 }
 
-// See https://man7.org/linux/man-pages/man3/listen.3p.html
-Server::Server() {
+void Server::createMainSocket() {
   // cria socket para aceitar novas conexoes
-  port = PORT;
   main_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 
   if (main_socket_fd == -1) {
@@ -37,7 +33,8 @@ Server::Server() {
     exit(EXIT_FAILURE);
   }
   int opt = 1;
-  if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+  if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) ==
+      -1) {
     int error = errno;
     log_error("Não foi possível executar setsockopt, errno=%d ", error);
     close(main_socket_fd);
@@ -47,14 +44,31 @@ Server::Server() {
   sockaddr_in server_addr, client_addr;
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = INADDR_ANY;
-  server_addr.sin_port = htons(PORT);
+  server_addr.sin_port = htons(port);
 
-  if (bind(main_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+  if (bind(main_socket_fd, (struct sockaddr *)&server_addr,
+           sizeof(server_addr)) == -1) {
     int error = errno;
     log_error("Não foi possível bindar socket, errno=%d ", error);
     exit(EXIT_FAILURE);
   }
-  log_info("Server inicializado na porta: %d ", PORT);
+  log_info("Server inicializado na porta: %d ", port);
+}
+
+// See https://man7.org/linux/man-pages/man3/listen.3p.html
+Server::Server(ServerState state, int running_port)
+    : port(running_port), state(state) {
+  createMainSocket();
+}
+
+Server::Server(ServerState state, int running_port, std::string ip, int port) {
+  this->state = state;
+  this->leader_connection = new NetworkManager();
+  createMainSocket();
+  leader_connection->connectTo(ip, port);
+  std::string peer_msg = "PEER 0";
+  leader_connection->sendPacket(
+      CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
 }
 
 ClientManager *Server::clientExists(string client_username) {
@@ -79,28 +93,47 @@ void Server::run() {
 
   sockaddr_in client_addr; // Declaração de client_addr
   while (true) {
+    if (state == BACKUP) {
+      // conecta com o lider
+    }
     socklen_t addrlen = sizeof(client_addr);
     log_info("Esperando novas conexões");
-    int new_socket_fd = accept(main_socket_fd, (struct sockaddr *)&client_addr, &addrlen);
+    int new_socket_fd =
+        accept(main_socket_fd, (struct sockaddr *)&client_addr, &addrlen);
     if (new_socket_fd < 0) {
       perror("accept");
       exit(EXIT_FAILURE);
     }
     log_info("Nova conexão recebida");
     NetworkManager network_manager(new_socket_fd, "server");
-    // espera um pacote com payload sendo o username
-    packet pkt = network_manager.receivePacket();
-    std::string username(pkt._payload);
-    log_info("Recebido username: %s", username.c_str());
 
-    if (ClientManager *manager = clientExists(username)) {
-      // Se o cliente já existe, entrega o socket para o manager
-      log_info("Cliente já existe, entregando socket para o manager");
-      deliverToManager(manager, new_socket_fd);
-    } else {
-      // Se o cliente não existe, cria um novo manager e entrega o socket
-      log_info("Cliente não existe, criando novo client manager");
-      createNewManager(username, new_socket_fd);
+    packet pkt = network_manager.receivePacket();
+    std::string first_message(pkt._payload);
+    // separa a mesagem com base no primeiro espaço
+    size_t space_pos = first_message.find(' ');
+    if (space_pos == std::string::npos) {
+      log_error("Mensagem inválida recebida, não contém espaço");
+      close(new_socket_fd);
+      continue; // ignora essa conexão
+    }
+    std::string command = first_message.substr(0, space_pos);
+
+    if (command == "CLIENT") {
+      std::string username = first_message.substr(space_pos + 1);
+      log_info("Cliente conectado com username: %s", username.c_str());
+      if (ClientManager *manager = clientExists(username)) {
+        log_info("Cliente já existe, entregando socket para o manager");
+        deliverToManager(manager, new_socket_fd);
+      } else {
+        log_info("Cliente não existe, criando novo client manager");
+        createNewManager(username, new_socket_fd);
+      }
+    } else if (command == "PEER") {
+      log_info("Nova conexão peer recebida");
+      NetworkManager *peer_manager = new NetworkManager(new_socket_fd, "peer");
+      // Adiciona o novo peer à lista de conexões
+      peer_connections.push_back(peer_manager); // nao precisa de mutex, pois
+                                                // aqui ainda é single-threaded
     }
   }
 }
