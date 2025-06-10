@@ -67,8 +67,9 @@ Server::Server(ServerState state, int running_port, std::string ip, int port) {
   createMainSocket();
   leader_connection->connectTo(ip, port);
   std::string peer_msg = "PEER 0";
-  leader_connection->sendPacket(
-      CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+  std::string running_port_str = std::to_string(running_port);
+  leader_connection->sendPacket(CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+  leader_connection->sendPacket(CMD, 1, std::vector<char>(running_port_str.begin(), running_port_str.end()));
 }
 
 ClientManager *Server::clientExists(string client_username) {
@@ -105,9 +106,10 @@ void Server::run() {
       exit(EXIT_FAILURE);
     }
     log_info("Nova conexão recebida");
-    NetworkManager network_manager(new_socket_fd, "server");
+    NetworkManager *network_manager = new NetworkManager(new_socket_fd, "server");
 
-    packet pkt = network_manager.receivePacket();
+    packet pkt = network_manager->receivePacket();
+    NetworkManager::printPacket(pkt);
     std::string first_message(pkt._payload);
     // separa a mesagem com base no primeiro espaço
     size_t space_pos = first_message.find(' ');
@@ -121,6 +123,7 @@ void Server::run() {
     if (command == "CLIENT") {
       std::string username = first_message.substr(space_pos + 1);
       log_info("Cliente conectado com username: %s", username.c_str());
+      delete network_manager; // nao precisa mais do NetworkManager, pois o socket vai ser entregue ao manager
       if (ClientManager *manager = clientExists(username)) {
         log_info("Cliente já existe, entregando socket para o manager");
         deliverToManager(manager, new_socket_fd);
@@ -130,10 +133,11 @@ void Server::run() {
       }
     } else if (command == "PEER") {
       log_info("Nova conexão peer recebida");
-      NetworkManager *peer_manager = new NetworkManager(new_socket_fd, "peer");
       // Adiciona o novo peer à lista de conexões
-      peer_connections.push_back(peer_manager); // nao precisa de mutex, pois
-                                                // aqui ainda é single-threaded
+      peer_connections.push_back(network_manager); // nao precisa de mutex, pois aqui ainda é single-threaded
+      // inicia thread para lidar com esse peer
+      packet pkt = network_manager->receivePacket();
+      NetworkManager::printPacket(pkt);
     }
   }
 }

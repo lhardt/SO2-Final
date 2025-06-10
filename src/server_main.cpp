@@ -17,8 +17,7 @@ int main(int argc, char *argv[]) {
   if (argc == 3) {
     server = new Server(LEADER, std::stoi(argv[1]));
   } else if (argc == 5) {
-    server =
-        new Server(BACKUP, std::stoi(argv[1]), argv[2], std::stoi(argv[3]));
+    server = new Server(BACKUP, std::stoi(argv[1]), argv[2], std::stoi(argv[3]));
   } else {
     std::cerr << "Usage: " << argv[0] << " [<ip> <port>] [-b]\n";
     return EXIT_FAILURE;

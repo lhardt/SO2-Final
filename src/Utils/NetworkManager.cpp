@@ -425,3 +425,17 @@ void NetworkManager::connectTo(const std::string &ip, int port) {
 
   log_info("Connected to server at %s:%d", ip.c_str(), port);
 }
+
+void NetworkManager::printPacket(packet &pkt) {
+  std::cout << "Packet Type: " << pkt.type << "\n"
+            << "Sequence Number: " << pkt.seqn << "\n"
+            << "Total Size: " << pkt.total_size << "\n"
+            << "Length: " << pkt.length << "\n"
+            << "Payload: ";
+  if (pkt._payload) {
+    std::cout.write(pkt._payload, pkt.length);
+  } else {
+    std::cout << "(null)";
+  }
+  std::cout << "\n";
+}

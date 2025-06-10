@@ -50,6 +50,7 @@ public:
   std::string getIP();
   int getPort();
   void connectTo(const std::string &ip, int port);
+  static void printPacket(packet &pkt);
 
 private:
   int socket_fd;
