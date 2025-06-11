@@ -9,17 +9,18 @@
 #define PORT 4000
 using namespace std;
 
-enum ServerState { LEADER, BACKUP };
+enum ServerState { LEADER,
+                   BACKUP };
 
 class Server {
 public:
   Server(ServerState state, int running_port = PORT);
-  Server(ServerState state, int running_port, std::string connect_ip,
-         int connect_port);
+  Server(ServerState state, int running_port, std::string connect_ip, int connect_port);
   void run();
 
 private:
   int port;
+  std::string ip;
   int main_socket_fd;
   std::mutex clients_mutex;
   std::vector<NetworkManager *> peer_connections;
@@ -32,4 +33,7 @@ private:
   void createNewManager(std::string username, int sock_file_descriptor);
   void deliverToManager(ClientManager *manager, int socket);
   void createMainSocket();
+  void handlePeerThread(NetworkManager *peer_manager);
+  std::vector<std::string> getClients();
+  std::string getLocalIP();
 };

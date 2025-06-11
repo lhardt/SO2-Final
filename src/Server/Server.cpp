@@ -3,10 +3,13 @@
 #include "../Utils/logger.hpp"
 #include <arpa/inet.h>
 #include <cstring>
+#include <ifaddrs.h>
 #include <mutex>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
 
 struct ThreadArg {
@@ -22,6 +25,31 @@ extern "C" void *client_thread_entry(void *raw) {
   return nullptr;
 }
 
+// See https://man7.org/linux/man-pages/man3/listen.3p.html
+Server::Server(ServerState state, int running_port) : port(running_port), state(state) {
+  createMainSocket();
+  this->leader_connection = NULL; // se inicializou dessa forma , então é o lider
+  this->ip = getLocalIP();        // pega o IP local
+}
+
+Server::Server(ServerState state, int running_port, std::string ip, int port) {
+  this->state = state;
+  this->leader_connection = new NetworkManager();
+  this->ip = getLocalIP(); // pega o IP local
+  createMainSocket();
+  leader_connection->connectTo(ip, port);
+  std::string peer_msg = "PEER 0";
+  leader_connection->sendPacket(CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+  std::string who_is_leader_msg = "WHO_IS_LEADER";
+  leader_connection->sendPacket(CMD, 0, std::vector<char>(who_is_leader_msg.begin(), who_is_leader_msg.end()));
+  packet pkt = leader_connection->receivePacket();
+  NetworkManager::printPacket(pkt);
+  std::string get_clients_msg = "GET_CLIENTS";
+  leader_connection->sendPacket(CMD, 0, std::vector<char>(get_clients_msg.begin(), get_clients_msg.end()));
+  packet pkt2 = leader_connection->receivePacket();
+  NetworkManager::printPacket(pkt2);
+}
+
 void Server::createMainSocket() {
   // cria socket para aceitar novas conexoes
   main_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -33,8 +61,7 @@ void Server::createMainSocket() {
     exit(EXIT_FAILURE);
   }
   int opt = 1;
-  if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) ==
-      -1) {
+  if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
     int error = errno;
     log_error("Não foi possível executar setsockopt, errno=%d ", error);
     close(main_socket_fd);
@@ -46,32 +73,13 @@ void Server::createMainSocket() {
   server_addr.sin_addr.s_addr = INADDR_ANY;
   server_addr.sin_port = htons(port);
 
-  if (bind(main_socket_fd, (struct sockaddr *)&server_addr,
-           sizeof(server_addr)) == -1) {
+  if (bind(main_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
     int error = errno;
     log_error("Não foi possível bindar socket, errno=%d ", error);
     exit(EXIT_FAILURE);
   }
   log_info("Server inicializado na porta: %d ", port);
 }
-
-// See https://man7.org/linux/man-pages/man3/listen.3p.html
-Server::Server(ServerState state, int running_port)
-    : port(running_port), state(state) {
-  createMainSocket();
-}
-
-Server::Server(ServerState state, int running_port, std::string ip, int port) {
-  this->state = state;
-  this->leader_connection = new NetworkManager();
-  createMainSocket();
-  leader_connection->connectTo(ip, port);
-  std::string peer_msg = "PEER 0";
-  std::string running_port_str = std::to_string(running_port);
-  leader_connection->sendPacket(CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
-  leader_connection->sendPacket(CMD, 1, std::vector<char>(running_port_str.begin(), running_port_str.end()));
-}
-
 ClientManager *Server::clientExists(string client_username) {
 
   for (ClientManager *manager : clients) {
@@ -99,8 +107,7 @@ void Server::run() {
     }
     socklen_t addrlen = sizeof(client_addr);
     log_info("Esperando novas conexões");
-    int new_socket_fd =
-        accept(main_socket_fd, (struct sockaddr *)&client_addr, &addrlen);
+    int new_socket_fd = accept(main_socket_fd, (struct sockaddr *)&client_addr, &addrlen);
     if (new_socket_fd < 0) {
       perror("accept");
       exit(EXIT_FAILURE);
@@ -110,18 +117,18 @@ void Server::run() {
 
     packet pkt = network_manager->receivePacket();
     NetworkManager::printPacket(pkt);
-    std::string first_message(pkt._payload);
+    std::string received_message(pkt._payload);
     // separa a mesagem com base no primeiro espaço
-    size_t space_pos = first_message.find(' ');
+    size_t space_pos = received_message.find(' ');
     if (space_pos == std::string::npos) {
       log_error("Mensagem inválida recebida, não contém espaço");
       close(new_socket_fd);
       continue; // ignora essa conexão
     }
-    std::string command = first_message.substr(0, space_pos);
+    std::string command = received_message.substr(0, space_pos);
 
     if (command == "CLIENT") {
-      std::string username = first_message.substr(space_pos + 1);
+      std::string username = received_message.substr(space_pos + 1);
       log_info("Cliente conectado com username: %s", username.c_str());
       delete network_manager; // nao precisa mais do NetworkManager, pois o socket vai ser entregue ao manager
       if (ClientManager *manager = clientExists(username)) {
@@ -136,8 +143,8 @@ void Server::run() {
       // Adiciona o novo peer à lista de conexões
       peer_connections.push_back(network_manager); // nao precisa de mutex, pois aqui ainda é single-threaded
       // inicia thread para lidar com esse peer
-      packet pkt = network_manager->receivePacket();
-      NetworkManager::printPacket(pkt);
+      std::thread peer_thread(&Server::handlePeerThread, this, network_manager);
+      peer_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
     }
   }
 }
@@ -148,8 +155,7 @@ void Server::createNewManager(string username, int sock_file_descriptor) {
   clients_mutex.lock();
   clients.push_back(manager); // adiciona o manager a lista de clientes
   clients_mutex.unlock();
-  deliverToManager(manager,
-                   sock_file_descriptor); // entrega o socket para o manager
+  deliverToManager(manager, sock_file_descriptor); // entrega o socket para o manager
 }
 
 void Server::deliverToManager(ClientManager *manager, int sock_fd) {
@@ -160,4 +166,66 @@ void Server::deliverToManager(ClientManager *manager, int sock_fd) {
     exit(EXIT_FAILURE);
   }
   pthread_detach(thread);
+}
+
+vector<std::string> Server::getClients() {
+  vector<std::string> client_list;
+  for (ClientManager *manager : clients) {
+    client_list.push_back(manager->getUsername() + " " + manager->getIp() + ":" + std::to_string(manager->getPort()));
+  }
+  return client_list;
+}
+
+void Server::handlePeerThread(NetworkManager *peer_manager) {
+  log_info("Iniciando thread para lidar com peer");
+  while (true) {
+    try {
+      packet pkt = peer_manager->receivePacket();
+      NetworkManager::printPacket(pkt);
+
+      std::string received_message(pkt._payload);
+      std::string command = received_message.substr(0, received_message.find(' '));
+      if (command == "WHO_IS_LEADER") {
+        if (state == LEADER) {
+          log_info("Respondendo ao peer com o IP do líder");
+          // responde com o proprio IP e porta
+          std::string response = "LEADER_IS " + ip;
+          peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
+        } else {
+          log_info("Peer solicitou o líder, mas este servidor é um backup");
+        }
+      } else if (command == "GET_CLIENTS") {
+        log_info("Peer solicitou a lista de clientes");
+        std::vector<std::string> clients = getClients();
+        std::string response = "CLIENTS ";
+        for (const auto &client : clients) {
+          response += client + ";";
+        }
+        peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
+        log_info("Lista de clientes enviada para o peer");
+      } else {
+        log_warn("Comando desconhecido recebido do peer: %s", command.c_str());
+      }
+    } catch (const std::exception &e) {
+      log_error("Erro ao receber pacote do peer: %s", e.what());
+      break; // sai do loop se houver erro
+    }
+  }
+}
+std::string Server::getLocalIP() {
+  struct ifaddrs *ifaddr, *ifa;
+  char ip[INET_ADDRSTRLEN] = {0};
+  if (getifaddrs(&ifaddr) == -1) {
+    return "127.0.0.1";
+  }
+  for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+    if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET &&
+        !(ifa->ifa_flags & IFF_LOOPBACK)) {
+      void *addr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+      inet_ntop(AF_INET, addr, ip, INET_ADDRSTRLEN);
+      break;
+    }
+  }
+  freeifaddrs(ifaddr);
+  return std::string(ip);
 }
