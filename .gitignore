@@ -5,3 +5,6 @@ test_user/
 sync_dir/
 logger.log
 .clang-format
+cache/
+tmp.md
+compile_commands.json

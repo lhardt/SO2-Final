@@ -1,6 +1,7 @@
 #include "NetworkManager.hpp"
-#include "logger.hpp"
 #include "FileManager.hpp"
+#include "logger.hpp"
+#include <arpa/inet.h>
 #include <cstddef>
 #include <cstring>
 #include <fstream>
@@ -45,7 +46,8 @@ void NetworkManager::sendPacket(packet *p) {
   }
 };
 
-void NetworkManager::sendPacket(uint16_t type, uint16_t seqn, const std::vector<char> &payload) {
+void NetworkManager::sendPacket(uint16_t type, uint16_t seqn,
+                                const std::vector<char> &payload) {
   checkSocketInitialized();
 
   packet pkt;
@@ -174,7 +176,9 @@ packet NetworkManager::receivePacket() {
   return pkt;
 }
 
-void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t bufferSize, FileManager &fileManager) {
+void NetworkManager::sendFileInChunks(const std::string &filepath,
+                                      const size_t bufferSize,
+                                      FileManager &fileManager) {
 
   try {
     // Lê o arquivo inteiro como um vetor de bytes
@@ -193,7 +197,8 @@ void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t 
                           fileData.begin() + offset + chunkSize);
 
       std::string command = payload;
-      sendPacket(DATA, sequenceNumber++, std::vector<char>(command.begin(), command.end()));
+      sendPacket(DATA, sequenceNumber++,
+                 std::vector<char>(command.begin(), command.end()));
       log_info("Enviado chunck de tamanho %zu do arquivo: %s, %d/%d", chunkSize,
                filepath.c_str(), sequenceNumber, totalPackets);
 
@@ -202,7 +207,8 @@ void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t 
 
     // Envia um pacote final indicando o término do envio
     std::string command = "END_OF_FILE";
-    sendPacket(CMD, sequenceNumber, std::vector<char>(command.begin(), command.end()));
+    sendPacket(CMD, sequenceNumber,
+               std::vector<char>(command.begin(), command.end()));
     log_info("Arquivo enviado com sucesso: %s", filepath.c_str());
   } catch (const std::exception &e) {
     log_error("Falha ao enviar ou ler arquivo: %s", e.what());
@@ -358,4 +364,78 @@ void NetworkManager::closeConnection() {
     socket_fd = -1;
     log_info("%s Fechou conexão", name.c_str());
   }
+}
+std::string NetworkManager::getIP() {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket not initialized");
+  }
+
+  sockaddr_in addr;
+  socklen_t addrlen = sizeof(addr);
+  if (getsockname(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+    throw std::runtime_error("Failed to get socket name");
+  }
+
+  char ip_str[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &addr.sin_addr, ip_str, sizeof(ip_str)) == nullptr) {
+    throw std::runtime_error("Failed to convert IP address to string");
+  }
+
+  return std::string(ip_str);
+}
+
+int NetworkManager::getPort() {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket not initialized");
+  }
+
+  sockaddr_in addr;
+  socklen_t addrlen = sizeof(addr);
+  if (getsockname(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+    throw std::runtime_error("Failed to get socket name");
+  }
+
+  return ntohs(addr.sin_port);
+}
+
+void NetworkManager::connectTo(const std::string &ip, int port) {
+  if (socket_fd != -1) {
+    throw std::runtime_error("Socket already initialized");
+  }
+
+  socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (socket_fd == -1) {
+    throw std::runtime_error("Failed to create socket");
+  }
+
+  sockaddr_in server_addr;
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons(port);
+
+  if (inet_pton(AF_INET, ip.c_str(), &server_addr.sin_addr) <= 0) {
+    close(socket_fd);
+    throw std::runtime_error("Invalid IP address");
+  }
+
+  if (connect(socket_fd, (struct sockaddr *)&server_addr,
+              sizeof(server_addr)) == -1) {
+    close(socket_fd);
+    throw std::runtime_error("Failed to connect to server");
+  }
+
+  log_info("Connected to server at %s:%d", ip.c_str(), port);
+}
+
+void NetworkManager::printPacket(packet &pkt) {
+  std::cout << "Packet Type: " << pkt.type << "\n"
+            << "Sequence Number: " << pkt.seqn << "\n"
+            << "Total Size: " << pkt.total_size << "\n"
+            << "Length: " << pkt.length << "\n"
+            << "Payload: ";
+  if (pkt._payload) {
+    std::cout.write(pkt._payload, pkt.length);
+  } else {
+    std::cout << "(null)";
+  }
+  std::cout << "\n";
 }

@@ -87,4 +87,7 @@ obj/%.o: src/%.cpp | folders
 $(TRG_MAIN): $(OBJ_MAIN) $(OBJ_OTHER)
 	g++ -o $@ $(@:$(BINDIR)/%=$(OBJDIR)/%_main.o) $(OBJ_OTHER) $(LIB) $(CXXFLAGS) $(SANITIZE_FLAGS)
 
+debug: CXXFLAGS += -g -O0 -Wall -Wextra
+debug: clean all
+
 

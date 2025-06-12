@@ -37,7 +37,8 @@ public:
   NetworkManager(int socket_fd, const std::string &name = "");
 
   void sendPacket(packet *p);
-  void sendPacket(uint16_t type, uint16_t seqn, const std::vector<char> &payload);
+  void sendPacket(uint16_t type, uint16_t seqn,
+                  const std::vector<char> &payload);
   packet receivePacket();
   void sendFileInChunks(const std::string &filepath, const size_t bufferSize,
                         FileManager &fileManager);
@@ -46,6 +47,10 @@ public:
   int createAndSetupSocket();
   void acceptConnection();
   void closeSocket();
+  std::string getIP();
+  int getPort();
+  void connectTo(const std::string &ip, int port);
+  static void printPacket(packet &pkt);
 
 private:
   int socket_fd;
