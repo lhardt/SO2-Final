@@ -1,6 +1,8 @@
 #include "NetworkManager.hpp"
 #include "logger.hpp"
 #include "FileManager.hpp"
+#include <arpa/inet.h>
+#include <thread>
 #include <cstddef>
 #include <cstring>
 #include <fstream>
@@ -13,11 +15,21 @@
 
 NetworkManager::NetworkManager(const std::string &name)
     : socket_fd(-1), name(name) {}
+
+
 NetworkManager::NetworkManager(int socket_fd, const std::string &name)
     : socket_fd(socket_fd), name(name) {
   if (socket_fd == -1) {
     throw std::runtime_error("Invalid socket file descriptor");
   }
+}
+
+NetworkManager::NetworkManager(std::string name, std::string ip, int port){
+  int sock = connect_to_socket(ip, port);
+  this->socket_fd = sock;
+  this->name = name;
+
+  log_info("Network Manager [%s] conectou a [%s : %d]!", name.c_str(), ip.c_str(), port);
 }
 
 void NetworkManager::sendPacket(packet *p) {
@@ -39,7 +51,7 @@ void NetworkManager::sendPacket(packet *p) {
     ssize_t sent =
         send(socket_fd, buffer.get() + total_sent, buffer_size - total_sent, 0);
     if (sent == -1) {
-      throw std::runtime_error("Failed to send packet");
+      throw std::runtime_error("Failed to send packet on " + this->name);
     }
     total_sent += sent;
   }
@@ -359,3 +371,48 @@ void NetworkManager::closeConnection() {
     log_info("%s Fechou conexão", name.c_str());
   }
 }
+
+/** 
+ * Tries to connect to a socket. 
+ * See https://man7.org/linux/man-pages/man3/connect.3p.html
+ */
+int connect_to_socket(std::string server_ip, int server_port) {
+
+  int retry_time_ms = 1000; // 1  segundo.
+  int max_retries = 150;  // 150 segundos = 2.5 min 
+
+  int sock = 0;
+  std::string server_string = server_ip + ":" + std::to_string(server_port);
+  struct sockaddr_in serv_addr;
+
+  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    int err = errno;
+    log_warn("Falha (errno=%d) ao criar um socket para [%s].", err, server_string.c_str());
+  }
+
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port = htons(server_port);
+
+  if (inet_pton(AF_INET, server_ip.c_str(), &serv_addr.sin_addr) <= 0) {
+    std::cerr << "Endereço (" << server_ip << ") inválido ou não suportado" << std::endl;
+    close(sock);
+    return 0;
+  }
+
+  int retries = 0;
+  while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    int err = errno;
+    log_warn("Falha (errno=%d) ao conectar com [%s]. Cliente irá esperar 500ms", err, server_string.c_str());
+    std::chrono::milliseconds sleep_time{retry_time_ms};
+    std::this_thread::sleep_for(sleep_time);
+    retries++;
+
+    if(retries > max_retries){
+      log_warn("Excedeu o máximo de tentativas para conectar a [%s].", server_string.c_str());
+      close(sock);
+      return 0;
+    }
+  }
+  return sock;
+}
+
