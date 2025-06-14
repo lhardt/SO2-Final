@@ -1,9 +1,11 @@
 #include "ClientManager.hpp"
+#include "../Utils/logger.hpp"
 #include <algorithm>
 #include <unistd.h>
-#include "../Utils/logger.hpp"
 
 ClientManager::ClientManager(string _username) : file_manager(nullptr), max_devices(MAX_DEVICES), username(username) {
+ClientManager::ClientManager(string username)
+    : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {
 
   if (username.empty()) {
     throw std::runtime_error("Username cannot be empty");
@@ -35,21 +37,17 @@ void ClientManager::handle_new_connection(int socket) {
   }
 }
 
-string ClientManager::getUsername() {
-  return this->username;
-}
+string ClientManager::getUsername() { return this->username; }
 
 void ClientManager::handle_new_push(string command, Device *caller) {
-  for(auto device:this->devices){
-    if(device != caller) 
-    device->sendPushTo(command);
+  for (auto device : this->devices) {
+    if (device != caller)
+      device->sendPushTo(command);
   }
-  
 }
 
 void ClientManager::removeDevice(Device *device) {
-  std::lock_guard<std::mutex> lock(
-      device_mutex); // Protege o acesso à lista de dispositivos
+  std::lock_guard<std::mutex> lock(device_mutex); // Protege o acesso à lista de dispositivos
   try {
     log_info("Removendo dispositivo");
     device->stop(); // Para o dispositivo
@@ -63,3 +61,5 @@ void ClientManager::removeDevice(Device *device) {
     log_error("Erro ao remover dispositivo: %s", e.what());
   }
 }
+std::string ClientManager::getIp() { return network_manager->getIP(); }
+int ClientManager::getPort() { return network_manager->getPort(); }

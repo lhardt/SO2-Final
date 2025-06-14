@@ -1,20 +1,19 @@
 #pragma once
-#include "Device.hpp"
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
+#include "Device.hpp"
 #include <iostream>
 #include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
 #include <vector>
-#include "Device.hpp"
 
 #define MAX_DEVICES 2
 
 using namespace std;
 class Device;
-class ClientManager{
+class ClientManager {
 
 public:
   ClientManager(string username);
@@ -22,6 +21,8 @@ public:
   void handle_new_connection(int socket);
   void handle_new_push(string command, Device *caller);
   void removeDevice(Device *device);
+  std::string getIp();
+  int getPort();
 
 private:
   vector<Device *> devices;
