@@ -35,6 +35,9 @@ class NetworkManager {
 public:
   NetworkManager(const std::string &name = "");
   NetworkManager(int socket_fd, const std::string &name = "");
+  
+  /** Creates a socket and tries to connect automatically to a remote. */
+  NetworkManager(std::string name, std::string ip, int port);
 
   void sendPacket(packet *p);
   void sendPacket(uint16_t type, uint16_t seqn,
@@ -64,3 +67,5 @@ private:
   void checkSocketInitialized();
   std::unique_ptr<char[]> receiveHeader();
 };
+
+int connect_to_socket(std::string server_name, int server_port);

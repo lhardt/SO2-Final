@@ -1,7 +1,8 @@
 #include "NetworkManager.hpp"
 #include "FileManager.hpp"
-#include "logger.hpp"
 #include <arpa/inet.h>
+#include <thread>
+#include "logger.hpp"
 #include <cstddef>
 #include <cstring>
 #include <fstream>
@@ -14,11 +15,23 @@
 
 NetworkManager::NetworkManager(const std::string &name)
     : socket_fd(-1), name(name) {}
+
+
 NetworkManager::NetworkManager(int socket_fd, const std::string &name)
     : socket_fd(socket_fd), name(name) {
   if (socket_fd == -1) {
     throw std::runtime_error("Invalid socket file descriptor");
   }
+}
+
+NetworkManager::NetworkManager(std::string name, std::string ip, int port){
+  int sock = connect_to_socket(ip, port);
+  this->socket_fd = sock;
+  this->name = name;
+  
+  if( sock <= 0) throw std::runtime_error("Socket wasn't created succesfully!");
+
+  log_info("Network Manager [%s] conectou a [%s : %d]!", name.c_str(), ip.c_str(), port);
 }
 
 void NetworkManager::sendPacket(packet *p) {
@@ -40,7 +53,7 @@ void NetworkManager::sendPacket(packet *p) {
     ssize_t sent =
         send(socket_fd, buffer.get() + total_sent, buffer_size - total_sent, 0);
     if (sent == -1) {
-      throw std::runtime_error("Failed to send packet");
+      throw std::runtime_error("Failed to send packet on " + this->name);
     }
     total_sent += sent;
   }
@@ -176,10 +189,7 @@ packet NetworkManager::receivePacket() {
   return pkt;
 }
 
-void NetworkManager::sendFileInChunks(const std::string &filepath,
-                                      const size_t bufferSize,
-                                      FileManager &fileManager) {
-
+void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t bufferSize, FileManager &fileManager) {
   try {
     // Lê o arquivo inteiro como um vetor de bytes
     std::vector<char> fileData = fileManager.readFile(filepath);
@@ -365,6 +375,7 @@ void NetworkManager::closeConnection() {
     log_info("%s Fechou conexão", name.c_str());
   }
 }
+
 std::string NetworkManager::getIP() {
   if (socket_fd == -1) {
     throw std::runtime_error("Socket not initialized");
@@ -438,4 +449,39 @@ void NetworkManager::printPacket(packet &pkt) {
     std::cout << "(null)";
   }
   std::cout << "\n";
+}
+
+int connect_to_socket(std::string ip, int port) {
+  int sock = 0;
+
+  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    int err = errno;
+    log_warn("Falha (errno=%d) ao criar um socket para [%s:%d].", err, ip.c_str(), port);
+  }
+
+  struct sockaddr_in serv_addr;
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port = htons(port);
+
+  if (inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr) <= 0) {
+    std::cerr << "Endereço (" << ip << ") inválido ou não suportado" << std::endl;
+    close(sock);
+    return -1;
+  }
+
+  int retries = 0, retry_time_ms = 1000, max_retries = 150;; // 1  segundo cada, 2.5 min.
+  while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    int err = errno;
+    log_warn("Falha (errno=%d) ao conectar com [%s:%d]. Cliente irá esperar 500ms", err, ip.c_str(), port);
+    std::chrono::milliseconds sleep_time{retry_time_ms};
+    std::this_thread::sleep_for(sleep_time);
+    retries++;
+
+    if(retries > max_retries){
+      log_warn("Excedeu o máximo de tentativas para conectar a [%s:port].", ip.c_str(), port);
+      close(sock);
+      return -1;
+    }
+  }
+  return sock;
 }
