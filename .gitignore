@@ -8,3 +8,4 @@ logger.log
 cache/
 tmp.md
 compile_commands.json
+.cache/

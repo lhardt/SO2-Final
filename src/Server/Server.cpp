@@ -8,6 +8,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <string>
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
@@ -47,7 +48,11 @@ Server::Server(ServerState state, int running_port, std::string ip, int port) {
   std::string get_clients_msg = "GET_CLIENTS";
   leader_connection->sendPacket(CMD, 0, std::vector<char>(get_clients_msg.begin(), get_clients_msg.end()));
   packet pkt2 = leader_connection->receivePacket();
+  log_info("Recebendo lista de clientes do líder");
   NetworkManager::printPacket(pkt2);
+  // inicia a thread para lidar com peers
+  std::thread peer_thread(&Server::handlePeerThread, this, leader_connection);
+  peer_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
 }
 
 void Server::createMainSocket() {
@@ -131,6 +136,13 @@ void Server::run() {
       std::string username = received_message.substr(space_pos + 1);
       log_info("Cliente conectado com username: %s", username.c_str());
       delete network_manager; // nao precisa mais do NetworkManager, pois o socket vai ser entregue ao manager
+      // envia para os peers a informação de que um novo cliente se conectou
+      std::string peer_msg = "CLIENT_CONNECTION " + username;
+      for (auto &peer : peer_connections) {
+        log_info("Enviando informação de conexão do cliente %s para o peer", username.c_str());
+        peer->sendPacket(CMD, 0, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+      }
+
       if (ClientManager *manager = clientExists(username)) {
         log_info("Cliente já existe, entregando socket para o manager");
         deliverToManager(manager, new_socket_fd);
@@ -203,6 +215,10 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         }
         peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
         log_info("Lista de clientes enviada para o peer");
+      } else if (command == "CLIENT_CONNECTION") {
+        std::string client_info = received_message.substr(received_message.find(' ') + 1);
+        log_info("Peer enviou informação de conexão de cliente: %s", client_info.c_str());
+
       } else {
         log_warn("Comando desconhecido recebido do peer: %s", command.c_str());
       }
