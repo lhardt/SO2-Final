@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <unistd.h>
 
-ClientManager::ClientManager(string username)
-    : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {
+ClientManager::ClientManager(State state, string username)
+    : file_manager(nullptr), max_devices(MAX_DEVICES), username(username), state(state) {
 
   if (username.empty()) {
     throw std::runtime_error("Username cannot be empty");
@@ -36,6 +36,40 @@ void ClientManager::handle_new_connection(int socket) {
   }
 }
 
+void ClientManager::receivePushsOn(NetworkManager *network_manager) {
+  while (true) {
+    try {
+      packet pkt = network_manager->receivePacket();
+      NetworkManager::printPacket(pkt);
+      std::string received_message(pkt._payload);
+      std::string command = received_message.substr(0, received_message.find(' '));
+      if (command == "WRITE") {
+        std::string file_name = received_message.substr(received_message.find(' ') + 1);
+        log_info("Recebendo arquivo: %s", file_name.c_str());
+        bool stop = false;
+        while (!stop) {
+          packet pkt_received = network_manager->receivePacket();
+          if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
+            stop = true;
+            break;
+          }
+          std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
+          file_manager->writeFile(file_name, data);
+        }
+      } else if (command == "DELETE") {
+        std::string file_name = received_message.substr(received_message.find(' ') + 1);
+        log_info("Removendo arquivo: %s", file_name.c_str());
+        file_manager->deleteFile(file_name);
+      } else {
+        log_error("Comando desconhecido recebido: %s", command.c_str());
+      }
+    } catch (const std::runtime_error &e) {
+      log_warn("Erro ao receber push: %s", e.what());
+      break; // Sai do loop se ocorrer um erro
+    }
+  }
+}
+
 string ClientManager::getUsername() { return this->username; }
 
 void ClientManager::handle_new_push(string command, Device *caller) {
@@ -62,3 +96,9 @@ void ClientManager::removeDevice(Device *device) {
 }
 std::string ClientManager::getIp() { return network_manager->getIP(); }
 int ClientManager::getPort() { return network_manager->getPort(); }
+
+void ClientManager::add_new_backup(NetworkManager *peer_manager) {
+  std::lock_guard<std::mutex> lock(device_mutex);
+  backup_peers.push_back(peer_manager);
+  log_info("Novo backup adicionado. Total de backups: %d", backup_peers.size());
+}

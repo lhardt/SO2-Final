@@ -1,13 +1,17 @@
 #include "Server.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include "../Utils/logger.hpp"
+#include "ClientManager.hpp"
 #include <arpa/inet.h>
+#include <csignal>
+#include <cstddef>
 #include <cstring>
 #include <ifaddrs.h>
 #include <mutex>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <sstream>
 #include <string>
 #include <sys/socket.h>
 #include <thread>
@@ -27,13 +31,13 @@ extern "C" void *client_thread_entry(void *raw) {
 }
 
 // See https://man7.org/linux/man-pages/man3/listen.3p.html
-Server::Server(ServerState state, int running_port) : port(running_port), state(state) {
+Server::Server(State state, int running_port) : port(running_port), state(state) {
   createMainSocket();
   this->leader_connection = NULL; // se inicializou dessa forma , então é o lider
   this->ip = getLocalIP();        // pega o IP local
 }
 
-Server::Server(ServerState state, int running_port, std::string ip, int port) {
+Server::Server(State state, int running_port, std::string ip, int port) {
   this->state = state;
   this->leader_connection = new NetworkManager();
   this->ip = getLocalIP(); // pega o IP local
@@ -136,20 +140,29 @@ void Server::run() {
       std::string username = received_message.substr(space_pos + 1);
       log_info("Cliente conectado com username: %s", username.c_str());
       delete network_manager; // nao precisa mais do NetworkManager, pois o socket vai ser entregue ao manager
+
+      // verifica se o cliente já existe
+      ClientManager *manager = clientExists(username);
+      if (!manager) {
+        manager = new ClientManager(LEADER, username);
+      }
+      deliverToManager(manager, new_socket_fd); // entrega o socket para o manager
+
       // envia para os peers a informação de que um novo cliente se conectou
       std::string peer_msg = "CLIENT_CONNECTION " + username;
       for (auto &peer : peer_connections) {
+
+        // para cada um, cria um NetworkManager novo e envia a mensagem + porta do novo NetworkManager
+        NetworkManager *peer_network_manager = new NetworkManager();
+        int listen_port = peer_network_manager->createAndSetupSocket();
+        peer_msg += " " + std::to_string(listen_port);
         log_info("Enviando informação de conexão do cliente %s para o peer", username.c_str());
         peer->sendPacket(CMD, 0, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+        // passa o novo NetworkManager para o ClientManager
+        peer_network_manager->acceptConnection();
+        manager->add_new_backup(peer_network_manager);
       }
 
-      if (ClientManager *manager = clientExists(username)) {
-        log_info("Cliente já existe, entregando socket para o manager");
-        deliverToManager(manager, new_socket_fd);
-      } else {
-        log_info("Cliente não existe, criando novo client manager");
-        createNewManager(username, new_socket_fd);
-      }
     } else if (command == "PEER") {
       log_info("Nova conexão peer recebida");
       // Adiciona o novo peer à lista de conexões
@@ -163,7 +176,7 @@ void Server::run() {
 
 void Server::createNewManager(string username, int sock_file_descriptor) {
   // cria um novo manager e entrega o socket para ele
-  ClientManager *manager = new ClientManager(username);
+  ClientManager *manager = new ClientManager(LEADER, username);
   clients_mutex.lock();
   clients.push_back(manager); // adiciona o manager a lista de clientes
   clients_mutex.unlock();
@@ -217,7 +230,17 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         log_info("Lista de clientes enviada para o peer");
       } else if (command == "CLIENT_CONNECTION") {
         std::string client_info = received_message.substr(received_message.find(' ') + 1);
+        std::istringstream iss(client_info);
+        std::string username;
+        int porta;
+        iss >> username >> porta;
         log_info("Peer enviou informação de conexão de cliente: %s", client_info.c_str());
+        // cria um novo ClientManager para o client que se conectou
+        ClientManager *manager = createNewBackupClientManager(client_info);
+        NetworkManager *push_receiver = new NetworkManager();
+        push_receiver->connectTo(peer_manager->getIP(), porta);
+        std::thread push_receiver_thread(&ClientManager::receivePushsOn, manager, push_receiver);
+        push_receiver_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
 
       } else {
         log_warn("Comando desconhecido recebido do peer: %s", command.c_str());
@@ -244,4 +267,14 @@ std::string Server::getLocalIP() {
   }
   freeifaddrs(ifaddr);
   return std::string(ip);
+}
+
+ClientManager *Server::createNewBackupClientManager(std::string username) {
+  // cria um novo socket para o manager e manda a porta
+  // quando um cliente se conectar, o lider vai avisar os backups com o nome do cleinte e a porta em que o ClientManagerBackup que eles vao criar tem que se conectar
+  ClientManager *manager = new ClientManager(BACKUP, username);
+  clients_mutex.lock();
+  clients.push_back(manager); // adiciona o manager a lista de clientes
+  clients_mutex.unlock();
+  return manager; // retorna o manager criado
 }
