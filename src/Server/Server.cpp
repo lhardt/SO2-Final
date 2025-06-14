@@ -44,7 +44,7 @@ Server::Server() {
     exit(EXIT_FAILURE);
   }
 
-  sockaddr_in server_addr, client_addr;
+  sockaddr_in server_addr;
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = INADDR_ANY;
   server_addr.sin_port = htons(PORT);
@@ -69,8 +69,6 @@ ClientManager *Server::clientExists(string client_username) {
 
 void Server::run() {
   // Escuta por novas conexões
-  char buffer[MAX_PACKET_SIZE] = {0};
-
   if (listen(main_socket_fd, 5) == -1) {
     int error = errno;
     log_error("Não foi possível dar listen no socket, errno=%d ", error);

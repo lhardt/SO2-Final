@@ -205,7 +205,7 @@ void Client::handlePushThread() {
   log_info("Inicializado Push Thread com ID %ld ", std::this_thread::get_id());
 
   int sock = connect_to_socket(this->server_ip, this->push_port);
-  if (sock == 0) {
+  if (sock <= 0) {
     log_error("Erro ao criar socket");
     return;
   }

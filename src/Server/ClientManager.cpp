@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include "../Utils/logger.hpp"
 
-ClientManager::ClientManager(string username) : username(username), max_devices(MAX_DEVICES), file_manager(nullptr) {
+ClientManager::ClientManager(string _username) : file_manager(nullptr), max_devices(MAX_DEVICES), username(username) {
 
   if (username.empty()) {
     throw std::runtime_error("Username cannot be empty");
