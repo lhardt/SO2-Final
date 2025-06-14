@@ -28,7 +28,7 @@ private:
 
   ClientManager *clientExists(std::string client_username);
   void createNewManager(std::string username, int sock_file_descriptor);
-  ClientManager *createNewBackupClientManager(std::string username);
+  ClientManager *createNewBackupClientManager(std::string username, NetworkManager *push_receiver);
   void deliverToManager(ClientManager *manager, int socket);
   void createMainSocket();
   void handlePeerThread(NetworkManager *peer_manager);
