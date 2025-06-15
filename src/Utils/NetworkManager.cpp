@@ -1,8 +1,8 @@
 #include "NetworkManager.hpp"
 #include "FileManager.hpp"
+#include "logger.hpp"
 #include <arpa/inet.h>
 #include <thread>
-#include "logger.hpp"
 #include <cstddef>
 #include <cstring>
 #include <fstream>

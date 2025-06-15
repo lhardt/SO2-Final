@@ -1,6 +1,7 @@
 #pragma once
+#include "../Utils/State.hpp"
 #include "ClientManager.hpp"
-#include <iostream>
+#include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
@@ -8,14 +9,12 @@
 
 #define PORT 4000
 using namespace std;
-
-enum ServerState { LEADER,
-                   BACKUP };
+class ClientManager;
 
 class Server {
 public:
-  Server(ServerState state, int running_port = PORT);
-  Server(ServerState state, int running_port, std::string connect_ip, int connect_port);
+  Server(State state, int running_port = PORT);
+  Server(State state, int running_port, std::string connect_ip, int connect_port);
   void run();
 
 private:
@@ -25,12 +24,13 @@ private:
   std::mutex clients_mutex;
   std::vector<NetworkManager *> peer_connections;
   NetworkManager *leader_connection;
-  ServerState state = LEADER;
+  State state = LEADER;
 
   vector<ClientManager *> clients;
 
   ClientManager *clientExists(std::string client_username);
-  void createNewManager(std::string username, int sock_file_descriptor);
+  ClientManager *createNewManager(State state, std::string username);
+  ClientManager *createNewBackupClientManager(std::string username, NetworkManager *push_receiver);
   void deliverToManager(ClientManager *manager, int socket);
   void createMainSocket();
   void handlePeerThread(NetworkManager *peer_manager);

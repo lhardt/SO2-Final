@@ -130,7 +130,7 @@ void Client::handleIoThread() {
         std::cout << "No files found in the local directory.\n";
       }
     } else if (regex_match(cmdline, cmdarg, gsd)) {
-      std::cout <<" Sync Dir path is ./sync_dir" << std::endl;
+      std::cout << " Sync Dir path is ./sync_dir" << std::endl;
     } else if (regex_match(cmdline, cmdarg, ext)) {
       exit(0);
     } else {
@@ -264,8 +264,8 @@ Client::Client(std::string _client_name, std::string _server_ip,
 
   // é o socket de commandos, tem que passar para a thread de IO
   this->command_manager = new NetworkManager("CommandManager", server_ip, server_port_int);
+  std::string command = "CLIENT " + client_name;
 
-  std::string command = client_name;
   command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
 
   // recebe o primeiro pacote do server
