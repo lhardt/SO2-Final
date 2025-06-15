@@ -11,9 +11,6 @@
 using namespace std;
 class ClientManager;
 
-enum ServerState { LEADER,
-                   BACKUP };
-
 class Server {
 public:
   Server(State state, int running_port = PORT);
