@@ -59,6 +59,11 @@ void NetworkManager::sendPacket(packet *p) {
   }
 };
 
+
+void NetworkManager::sendPacket(uint16_t type, uint16_t seqn, const std::string &payload) {
+  sendPacket(type, seqn, std::vector<char>(payload.begin(), payload.end()));
+}
+
 void NetworkManager::sendPacket(uint16_t type, uint16_t seqn,
                                 const std::vector<char> &payload) {
   checkSocketInitialized();
@@ -216,9 +221,7 @@ void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t 
     }
 
     // Envia um pacote final indicando o término do envio
-    std::string command = "END_OF_FILE";
-    sendPacket(CMD, sequenceNumber,
-               std::vector<char>(command.begin(), command.end()));
+    sendPacket(CMD, sequenceNumber, "END_OF_FILE");
     log_info("Arquivo enviado com sucesso: %s", filepath.c_str());
   } catch (const std::exception &e) {
     log_error("Falha ao enviar ou ler arquivo: %s", e.what());
