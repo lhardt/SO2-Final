@@ -2,15 +2,16 @@
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include "../Utils/State.hpp"
+#include "./Server.hpp"
 #include "Device.hpp"
 #include <iostream>
-#include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
 #include <vector>
 
 #define MAX_DEVICES 2
+class Server;
 
 using namespace std;
 class Device;
@@ -33,6 +34,7 @@ private:
   NetworkManager *network_manager;
   vector<NetworkManager *> backup_peers; // Lista de backups
   int max_devices;
+  Server *server; // Referência ao servidor
   string username;
   std::mutex device_mutex; // Mutex para proteger o acesso à lista de dispositivos
   State state;

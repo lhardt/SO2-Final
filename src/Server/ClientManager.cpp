@@ -19,8 +19,7 @@ void ClientManager::handle_new_connection(int socket) {
       log_warn("Limite de dispositivos atingido.");
       NetworkManager network_manager(socket, "Limite de dispositivos");
       std::string command = "Limite de dispositivos atingido";
-      network_manager.sendPacket(
-          CMD, 0, std::vector<char>(command.begin(), command.end()));
+      network_manager.sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
       network_manager.closeConnection();
       return;
     }
@@ -52,28 +51,29 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
         bool stop = false;
         while (!stop) {
           packet pkt_received = network_manager->receivePacket();
-          if (std::string(pkt_received._payload, pkt_received.length) ==
-              "END_OF_FILE") {
+          if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
             stop = true;
+            log_info("Recebimento do arquivo %s finalizado", file_name.c_str());
             break;
           }
-          std::vector<char> data(pkt_received._payload,
-                                 pkt_received._payload + pkt_received.length);
+          std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
           file_manager->writeFile(file_name, data);
         }
       } else if (command == "DELETE") {
-        std::string file_name =
-            received_message.substr(received_message.find(' ') + 1);
+        std::string file_name = received_message.substr(received_message.find(' ') + 1);
         log_info("Removendo arquivo: %s", file_name.c_str());
         file_manager->deleteFile(file_name);
       } else {
         log_error("Comando desconhecido recebido: %s", command.c_str());
+        log_info("Thread de recebimento de push finalizada");
       }
     } catch (const std::runtime_error &e) {
       log_warn("Erro ao receber push: %s", e.what());
+      log_info("Thread de recebimento de push finalizada");
       break; // Sai do loop se ocorrer um erro
     }
   }
+  log_info("Thread de recebimento de push finalizada");
 }
 
 string ClientManager::getUsername() { return this->username; }
@@ -85,6 +85,7 @@ void ClientManager::handle_new_push(string command, Device *caller) {
   }
   std::string command_upper = command.substr(0, command.find(' '));
   // manda o push para os backups
+  // TODO paralelizar o envio para os backups e proteger o acesso à lsita de backups
   for (auto backup : backup_peers) {
     // inicia uma thread para enviar o push e o arquivo para os backups
     backup->sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
@@ -101,10 +102,10 @@ void ClientManager::handle_new_push(string command, Device *caller) {
 }
 
 void ClientManager::removeDevice(Device *device) {
-  std::lock_guard<std::mutex> lock(
-      device_mutex); // Protege o acesso à lista de dispositivos
+  std::lock_guard<std::mutex> lock(device_mutex); // Protege o acesso à lista de dispositivos
   try {
     log_info("Removendo dispositivo");
+
     device->stop(); // Para o dispositivo
     auto it = std::find(devices.begin(), devices.end(), device);
     if (it != devices.end()) {

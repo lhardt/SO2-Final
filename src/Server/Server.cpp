@@ -134,8 +134,7 @@ void Server::run() {
       exit(EXIT_FAILURE);
     }
     log_info("Nova conexão recebida");
-    NetworkManager *network_manager =
-        new NetworkManager(new_socket_fd, "server");
+    NetworkManager *network_manager = new NetworkManager(new_socket_fd, "server");
 
     packet pkt = network_manager->receivePacket();
     NetworkManager::printPacket(pkt);
@@ -158,28 +157,25 @@ void Server::run() {
       // verifica se o cliente já existe
       ClientManager *manager = clientExists(username);
       if (!manager) {
+        log_info("Criando novo ClientManager para o cliente %s", username.c_str());
         manager = new ClientManager(LEADER, username);
-      }
-      deliverToManager(manager,
-                       new_socket_fd); // entrega o socket para o manager
+        // envia para os peers a informação de que um novo cliente se conectou
+        std::string peer_msg = "CLIENT_CONNECTION " + username;
+        for (auto &peer : peer_connections) {
 
-      // envia para os peers a informação de que um novo cliente se conectou
-      std::string peer_msg = "CLIENT_CONNECTION " + username;
-      for (auto &peer : peer_connections) {
-
-        // para cada um, cria um NetworkManager novo e envia a mensagem + porta
-        // do novo NetworkManager
-        NetworkManager *peer_network_manager = new NetworkManager();
-        int listen_port = peer_network_manager->createAndSetupSocket();
-        peer_msg += " " + std::to_string(listen_port);
-        log_info("Enviando informação de conexão do cliente %s para o peer",
-                 username.c_str());
-        peer->sendPacket(CMD, 0,
-                         std::vector<char>(peer_msg.begin(), peer_msg.end()));
-        // passa o novo NetworkManager para o ClientManager
-        peer_network_manager->acceptConnection();
-        manager->add_new_backup(peer_network_manager);
+          // para cada um, cria um NetworkManager novo e envia a mensagem + porta
+          // do novo NetworkManager
+          NetworkManager *peer_network_manager = new NetworkManager();
+          int listen_port = peer_network_manager->createAndSetupSocket();
+          peer_msg += " " + std::to_string(listen_port);
+          log_info("Enviando informação de conexão do cliente %s para o peer", username.c_str());
+          peer->sendPacket(CMD, 0, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+          // passa o novo NetworkManager para o ClientManager
+          peer_network_manager->acceptConnection();
+          manager->add_new_backup(peer_network_manager);
+        }
       }
+      deliverToManager(manager, new_socket_fd); // entrega o socket para o manager
 
     } else if (command == "PEER") {
       log_info("Nova conexão peer recebida");
@@ -251,8 +247,7 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         for (const auto &client : clients) {
           response += client + ";";
         }
-        peer_manager->sendPacket(
-            CMD, 0, std::vector<char>(response.begin(), response.end()));
+        peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
         log_info("Lista de clientes enviada para o peer");
       } else if (command == "CLIENT_CONNECTION") {
         std::string client_info =
@@ -261,16 +256,15 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         std::string username;
         int porta;
         iss >> username >> porta;
-        log_info("Peer enviou informação de conexão de cliente: %s",
-                 client_info.c_str());
-        // cria um novo ClientManager para o client que se conectou
-        NetworkManager *push_receiver = new NetworkManager();
-        ClientManager *manager = createNewBackupClientManager(username, push_receiver);
-        push_receiver->connectTo(peer_manager->getIP(), porta);
-        std::thread push_receiver_thread(&ClientManager::receivePushsOn,
-                                         manager, push_receiver);
-        push_receiver_thread
-            .detach(); // desanexa a thread para que ela possa rodar em paralelo
+        log_info("Peer enviou informação de conexão de cliente: %s", client_info.c_str());
+        if (!clientExists(username)) {
+          // cria um novo ClientManager para o client que se conectou
+          NetworkManager *push_receiver = new NetworkManager();
+          ClientManager *manager = createNewBackupClientManager(username, push_receiver);
+          push_receiver->connectTo(peer_manager->getIP(), porta);
+          std::thread push_receiver_thread(&ClientManager::receivePushsOn, manager, push_receiver);
+          push_receiver_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
+        }
 
       } else {
         log_warn("Comando desconhecido recebido do peer: %s", command.c_str());

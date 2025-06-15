@@ -1,6 +1,7 @@
 #pragma once
 #include "../Utils/State.hpp"
 #include "ClientManager.hpp"
+#include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
@@ -8,6 +9,7 @@
 
 #define PORT 4000
 using namespace std;
+class ClientManager;
 
 class Server {
 public:
