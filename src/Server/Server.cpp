@@ -45,17 +45,11 @@ Server::Server(State state, int running_port, std::string ip, int port) {
   this->ip = getLocalIP(); // pega o IP local
   createMainSocket();
   leader_connection->connectTo(ip, port);
-  std::string peer_msg = "PEER 0";
-  leader_connection->sendPacket(
-      CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
-  std::string who_is_leader_msg = "WHO_IS_LEADER";
-  leader_connection->sendPacket(
-      CMD, 0,
-      std::vector<char>(who_is_leader_msg.begin(), who_is_leader_msg.end()));
+  leader_connection->sendPacket(CMD, 1, "PEER 0");
+  leader_connection->sendPacket(CMD, 0, "WHO_IS_LEADER");
   packet pkt = leader_connection->receivePacket();
   NetworkManager::printPacket(pkt);
-  std::string get_clients_msg = "GET_CLIENTS";
-  leader_connection->sendPacket(CMD, 0, std::vector<char>(get_clients_msg.begin(), get_clients_msg.end()));
+  leader_connection->sendPacket(CMD, 0, "GET_CLIENTS");
   packet pkt2 = leader_connection->receivePacket();
   log_info("Recebendo lista de clientes do líder");
   NetworkManager::printPacket(pkt2);
@@ -228,8 +222,7 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         if (state == LEADER) {
           log_info("Respondendo ao peer com o IP do líder");
           // responde com o proprio IP e porta
-          std::string response = "LEADER_IS " + ip;
-          peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
+          peer_manager->sendPacket(CMD, 0, "LEADER_IS " + ip);
         } else {
           log_info("Peer solicitou o líder, mas este servidor é um backup");
         }

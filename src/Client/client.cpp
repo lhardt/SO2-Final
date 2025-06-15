@@ -67,9 +67,7 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, dow)) { // faz uma copia nao sincronizada do arquivo para o diretorio local(de onde foi chamado o cliente)
       std::string file_name = cmdarg[1].str();
-      std::string command = "DOWNLOAD " + file_name;
-
-      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      command_manager->sendPacket(CMD, 1, "DOWNLOAD " + file_name);
       // espera resposta do servidor...
       packet response = command_manager->receivePacket();
       if (std::string(response._payload, response.length) == "FILE_NOT_FOUND") {
@@ -104,8 +102,7 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;
-      std::string command = "LIST";
-      command_manager->sendPacket(CMD, 1, vector<char>(command.begin(), command.end()));
+      command_manager->sendPacket(CMD, 1, "LIST");
 
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();

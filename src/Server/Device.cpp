@@ -17,13 +17,11 @@ Device::Device(int command_socket_fd, ClientManager *client_manager, FileManager
   file_watcher_receiver = new NetworkManager("FileWatcherReceiver");
 
   int port1 = push_manager->createAndSetupSocket();
-  std::string command = "PORT " + std::to_string(port1);
-  command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+  command_manager->sendPacket(CMD, 1, "PORT " + std::to_string(port1));
   log_info("Enviado porta do push: %d", port1);
 
   int port2 = file_watcher_receiver->createAndSetupSocket();
-  std::string command2 = "PORT " + std::to_string(port2);
-  command_manager->sendPacket(CMD, 1, std::vector<char>(command2.begin(), command2.end()));
+  command_manager->sendPacket(CMD, 1, "PORT " + std::to_string(port2));
   log_info("Enviado porta do watcher: %d", port2);
 
   push_manager->acceptConnection();
@@ -57,12 +55,10 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
         std::string file_name;
         payload_stream >> file_name;
         if (!file_manager->isFileExists(file_name)) {
-          std::string command = "FILE_NOT_FOUND";
-          command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          command_manager->sendPacket(CMD, 1, "FILE_NOT_FOUND");
           continue;
         } else {
-          std::string command = "FILE_FOUND";
-          command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          command_manager->sendPacket(CMD, 1, "FILE_FOUND");
         }
         command_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE,
                                           *file_manager);
@@ -79,8 +75,7 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
           fim = "NAO HÁ ARQUIVOS";
         }
         command_manager->sendPacket(DATA, 1, vector<char>(fim.begin(), fim.end()));
-        std::string end_of_file = "END_OF_FILE";
-        command_manager->sendPacket(CMD, 1, vector<char>(end_of_file.begin(), end_of_file.end()));
+        command_manager->sendPacket(CMD, 1, "END_OF_FILE");
       } else {
         log_error("Comando desconhecido recebido do cliente: %s", command_keyword.c_str());
       }
