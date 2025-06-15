@@ -9,9 +9,8 @@
 #include <condition_variable>
 
 Device::Device(int command_socket_fd, ClientManager *client_manager, FileManager *file_manager)
-    : stop_requested(false), send_push(false), command_thread(nullptr), push_thread(nullptr),
-      file_watcher_thread(nullptr), client_manager(client_manager),
-      file_manager(file_manager) {
+    : stop_requested(false), send_push(false), client_manager(client_manager), command_thread(nullptr),
+      push_thread(nullptr), file_watcher_thread(nullptr), file_manager(file_manager) {
 
   command_manager = new NetworkManager(command_socket_fd, "CommandManager");
   push_manager = new NetworkManager("PushManager");

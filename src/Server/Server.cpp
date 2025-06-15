@@ -35,8 +35,7 @@ extern "C" void *client_thread_entry(void *raw) {
 Server::Server(State state, int running_port)
     : port(running_port), state(state) {
   createMainSocket();
-  this->leader_connection =
-      NULL;                // se inicializou dessa forma , então é o lider
+  this->leader_connection = NULL; // se inicializou dessa forma , então é o lider
   this->ip = getLocalIP(); // pega o IP local
 }
 
@@ -62,8 +61,7 @@ Server::Server(State state, int running_port, std::string ip, int port) {
   NetworkManager::printPacket(pkt2);
   // inicia a thread para lidar com peers
   std::thread peer_thread(&Server::handlePeerThread, this, leader_connection);
-  peer_thread
-      .detach(); // desanexa a thread para que ela possa rodar em paralelo
+  peer_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
 }
 
 void Server::createMainSocket() {
@@ -84,7 +82,7 @@ void Server::createMainSocket() {
     exit(EXIT_FAILURE);
   }
 
-  sockaddr_in server_addr, client_addr;
+  sockaddr_in server_addr;
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = INADDR_ANY;
   server_addr.sin_port = htons(port);
@@ -109,8 +107,6 @@ ClientManager *Server::clientExists(string client_username) {
 
 void Server::run() {
   // Escuta por novas conexões
-  char buffer[MAX_PACKET_SIZE] = {0};
-
   if (listen(main_socket_fd, 5) == -1) {
     int error = errno;
     log_error("Não foi possível dar listen no socket, errno=%d ", error);
@@ -185,7 +181,6 @@ void Server::run() {
       log_info("Nova conexão peer recebida");
       // Adiciona o novo peer à lista de conexões
       peer_connections.push_back(network_manager); // nao precisa de mutex, pois aqui ainda é
-                                                   // single-threaded
       // inicia thread para lidar com esse peer
       std::thread peer_thread(&Server::handlePeerThread, this, network_manager);
       peer_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
@@ -215,8 +210,7 @@ void Server::deliverToManager(ClientManager *manager, int sock_fd) {
 vector<std::string> Server::getClients() {
   vector<std::string> client_list;
   for (ClientManager *manager : clients) {
-    client_list.push_back(manager->getUsername() + " " + manager->getIp() +
-                          ":" + std::to_string(manager->getPort()));
+    client_list.push_back(manager->getUsername() + " " + manager->getIp() + ":" + std::to_string(manager->getPort()));
   }
   return client_list;
 }
@@ -229,15 +223,13 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
       NetworkManager::printPacket(pkt);
 
       std::string received_message(pkt._payload);
-      std::string command =
-          received_message.substr(0, received_message.find(' '));
+      std::string command = received_message.substr(0, received_message.find(' '));
       if (command == "WHO_IS_LEADER") {
         if (state == LEADER) {
           log_info("Respondendo ao peer com o IP do líder");
           // responde com o proprio IP e porta
           std::string response = "LEADER_IS " + ip;
-          peer_manager->sendPacket(
-              CMD, 0, std::vector<char>(response.begin(), response.end()));
+          peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
         } else {
           log_info("Peer solicitou o líder, mas este servidor é um backup");
         }
@@ -266,7 +258,6 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
           std::thread push_receiver_thread(&ClientManager::receivePushsOn, manager, push_receiver);
           push_receiver_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
         }
-
       } else {
         log_warn("Comando desconhecido recebido do peer: %s", command.c_str());
       }

@@ -6,7 +6,6 @@
 ClientManager::ClientManager(State state, string username)
     : file_manager(nullptr), max_devices(MAX_DEVICES),
       username(username), state(state) {
-
   if (username.empty()) {
     throw std::runtime_error("Username cannot be empty");
   }

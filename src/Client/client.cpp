@@ -2,7 +2,6 @@
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include "../Utils/logger.hpp"
-#include <arpa/inet.h>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -36,7 +35,7 @@ void g_handlePushThread(Client *client) {
 }
 
 void Client::handleIoThread() {
-  log_info("Inicializado IO Thread com ID: %d ", std::this_thread::get_id());
+  log_info("Inicializado IO Thread com ID: %ld ", std::this_thread::get_id());
 
   string cmdline;
   smatch cmdarg;
@@ -141,34 +140,12 @@ void Client::handleIoThread() {
 }
 
 void Client::handleFileThread() {
-  log_info("Inicializado File Thread com ID %d ", std::this_thread::get_id());
+  log_info("Inicializado File Thread com ID %ld, e porta %d ", std::this_thread::get_id(), this->file_watcher_port);
   static constexpr char *sync_dir = "sync_dir";
-
-  int sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock < 0) {
-    log_error("Erro ao criar socket");
-    return;
-  }
-
-  sockaddr_in server_addr{};
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(this->file_watcher_port);
-
-  if (inet_pton(AF_INET, this->server_ip.c_str(), &server_addr.sin_addr) <= 0) {
-    log_error("IP inválido: %s", this->server_ip.c_str());
-    close(sock);
-    return;
-  }
-
-  if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    log_error("Falha ao conectar com o servidor: %s:%d",
-              this->server_ip.c_str(), this->server_port.c_str());
-    close(sock);
-  }
 
   log_info("File thread conectado na porta: %d", this->file_watcher_port);
 
-  NetworkManager file_watcher_manager(sock, "FileWatcherManager");
+  NetworkManager file_watcher_manager("FileWatcherManager",this->server_ip, this->file_watcher_port);
 
   int inotifyFd = inotify_init1(IN_NONBLOCK);
   if (inotifyFd < 0) {
@@ -225,25 +202,12 @@ void Client::handleFileThread() {
 }
 
 void Client::handlePushThread() {
-  log_info("Inicializado Push Thread com ID %d ", std::this_thread::get_id());
+  log_info("Inicializado Push Thread com ID %ld ", std::this_thread::get_id());
 
-  int sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (sock < 0) {
+  int sock = connect_to_socket(this->server_ip, this->push_port);
+  if (sock <= 0) {
     log_error("Erro ao criar socket");
     return;
-  }
-  sockaddr_in server_addr{};
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(this->push_port);
-  if (inet_pton(AF_INET, this->server_ip.c_str(), &server_addr.sin_addr) <= 0) {
-    log_error("IP inválido: %s", this->server_ip.c_str());
-    close(sock);
-    return;
-  }
-  if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    log_error("Falha ao conectar com servidor: %s:%d",
-              this->server_ip.c_str(), this->server_port.c_str());
-    close(sock);
   }
 
   log_info("Push thread conectado na porta: %d", this->file_watcher_port);
@@ -252,7 +216,6 @@ void Client::handlePushThread() {
 
   while (true) {
     log_info("Aguardando push do servidor...");
-    ;
     packet pkt = push_receiver.receivePacket();
     std::istringstream payload_stream(pkt._payload);
     std::string command;
@@ -299,32 +262,10 @@ Client::Client(std::string _client_name, std::string _server_ip,
       server_port(_server_port) {
   int server_port_int = std::stoi(server_port);
 
-  int sock = 0;
-  struct sockaddr_in serv_addr;
-  char buffer[1024] = {0};
-
-  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    std::cerr << "Erro ao criar o socket" << std::endl;
-  }
-
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(server_port_int);
-
-  if (inet_pton(AF_INET, server_ip.c_str(), &serv_addr.sin_addr) <= 0) {
-    std::cerr << "Endereço (" << server_ip << ") inválido ou não suportado" << std::endl;
-  }
-
-  while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    int err = errno;
-    log_warn("Falha (errno=%d) ao conectar ao servidor. Cliente irá esperar 500ms", errno);
-    std::chrono::milliseconds sleep_time{500};
-    std::this_thread::sleep_for(sleep_time);
-  }
-
-  log_info("Conectado ao servidor");
-
-  this->command_manager = new NetworkManager(sock, "CommandManager"); // é o socket de commandos, tem que passar para a thread de IO
+  // é o socket de commandos, tem que passar para a thread de IO
+  this->command_manager = new NetworkManager("CommandManager", server_ip, server_port_int);
   std::string command = "CLIENT " + client_name;
+
   command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
 
   // recebe o primeiro pacote do server
