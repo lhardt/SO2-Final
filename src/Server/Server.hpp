@@ -29,7 +29,7 @@ private:
   vector<ClientManager *> clients;
 
   ClientManager *clientExists(std::string client_username);
-  void createNewManager(std::string username, int sock_file_descriptor);
+  ClientManager *createNewManager(State state, std::string username);
   ClientManager *createNewBackupClientManager(std::string username, NetworkManager *push_receiver);
   void deliverToManager(ClientManager *manager, int socket);
   void createMainSocket();

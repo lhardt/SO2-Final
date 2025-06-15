@@ -56,9 +56,7 @@ Server::Server(State state, int running_port, std::string ip, int port) {
   packet pkt = leader_connection->receivePacket();
   NetworkManager::printPacket(pkt);
   std::string get_clients_msg = "GET_CLIENTS";
-  leader_connection->sendPacket(
-      CMD, 0,
-      std::vector<char>(get_clients_msg.begin(), get_clients_msg.end()));
+  leader_connection->sendPacket(CMD, 0, std::vector<char>(get_clients_msg.begin(), get_clients_msg.end()));
   packet pkt2 = leader_connection->receivePacket();
   log_info("Recebendo lista de clientes do líder");
   NetworkManager::printPacket(pkt2);
@@ -79,8 +77,7 @@ void Server::createMainSocket() {
     exit(EXIT_FAILURE);
   }
   int opt = 1;
-  if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) ==
-      -1) {
+  if (setsockopt(main_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
     int error = errno;
     log_error("Não foi possível executar setsockopt, errno=%d ", error);
     close(main_socket_fd);
@@ -158,7 +155,7 @@ void Server::run() {
       ClientManager *manager = clientExists(username);
       if (!manager) {
         log_info("Criando novo ClientManager para o cliente %s", username.c_str());
-        manager = new ClientManager(LEADER, username);
+        manager = createNewManager(LEADER, username);
         // envia para os peers a informação de que um novo cliente se conectou
         std::string peer_msg = "CLIENT_CONNECTION " + username;
         for (auto &peer : peer_connections) {
@@ -173,32 +170,36 @@ void Server::run() {
           // passa o novo NetworkManager para o ClientManager
           peer_network_manager->acceptConnection();
           manager->add_new_backup(peer_network_manager);
+          // printa o vector de ClientManagers
+          log_info("Lista de clientes conectados:");
+          for (ClientManager *manager : clients) {
+            log_info("Cliente: %s", manager->getUsername().c_str());
+          }
         }
+      } else {
+        log_info("Cliente %s já existe, reutilizando ClientManager", username.c_str());
       }
       deliverToManager(manager, new_socket_fd); // entrega o socket para o manager
 
     } else if (command == "PEER") {
       log_info("Nova conexão peer recebida");
       // Adiciona o novo peer à lista de conexões
-      peer_connections.push_back(
-          network_manager); // nao precisa de mutex, pois aqui ainda é
-                            // single-threaded
+      peer_connections.push_back(network_manager); // nao precisa de mutex, pois aqui ainda é
+                                                   // single-threaded
       // inicia thread para lidar com esse peer
       std::thread peer_thread(&Server::handlePeerThread, this, network_manager);
-      peer_thread
-          .detach(); // desanexa a thread para que ela possa rodar em paralelo
+      peer_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
     }
   }
 }
 
-void Server::createNewManager(string username, int sock_file_descriptor) {
+ClientManager *Server::createNewManager(State state, string username) {
   // cria um novo manager e entrega o socket para ele
-  ClientManager *manager = new ClientManager(LEADER, username);
+  ClientManager *manager = new ClientManager(state, username);
   clients_mutex.lock();
   clients.push_back(manager); // adiciona o manager a lista de clientes
   clients_mutex.unlock();
-  deliverToManager(manager,
-                   sock_file_descriptor); // entrega o socket para o manager
+  return manager;
 }
 
 void Server::deliverToManager(ClientManager *manager, int sock_fd) {
