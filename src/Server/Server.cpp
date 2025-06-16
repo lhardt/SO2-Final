@@ -36,13 +36,14 @@ Server::Server(State state, int running_port)
     : port(running_port), state(state) {
   createMainSocket();
   this->leader_connection = NULL; // se inicializou dessa forma , então é o lider
-  this->ip = getLocalIP(); // pega o IP local
+  this->ip = getLocalIP();        // pega o IP local
 }
 
 Server::Server(State state, int running_port, std::string ip, int port) {
   this->state = state;
   this->leader_connection = new NetworkManager();
   this->ip = getLocalIP(); // pega o IP local
+  this->port = running_port;
   createMainSocket();
   leader_connection->connectTo(ip, port);
   leader_connection->sendPacket(CMD, 1, "PEER 0");
@@ -147,8 +148,8 @@ void Server::run() {
         log_info("Criando novo ClientManager para o cliente %s", username.c_str());
         manager = createNewManager(LEADER, username);
         // envia para os peers a informação de que um novo cliente se conectou
-        std::string peer_msg = "CLIENT_CONNECTION " + username;
         for (auto &peer : peer_connections) {
+          std::string peer_msg = "CLIENT_CONNECTION " + username;
 
           // para cada um, cria um NetworkManager novo e envia a mensagem + porta
           // do novo NetworkManager
