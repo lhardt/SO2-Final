@@ -36,26 +36,23 @@ Server::Server(State state, int running_port)
     : port(running_port), state(state) {
   createMainSocket();
   this->leader_connection = NULL; // se inicializou dessa forma , então é o lider
-  this->ip = getLocalIP(); // pega o IP local
+  this->ip = getLocalIP();        // pega o IP local
 }
 
 Server::Server(State state, int running_port, std::string ip, int port) {
   this->state = state;
   this->leader_connection = new NetworkManager();
   this->ip = getLocalIP(); // pega o IP local
+  this->port = running_port;
   createMainSocket();
   leader_connection->connectTo(ip, port);
   std::string peer_msg = "PEER 0";
-  leader_connection->sendPacket(
-      CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+  leader_connection->sendPacket(CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
   std::string who_is_leader_msg = "WHO_IS_LEADER";
-  leader_connection->sendPacket(
-      CMD, 0,
-      std::vector<char>(who_is_leader_msg.begin(), who_is_leader_msg.end()));
+  leader_connection->sendPacket(CMD, 0, std::vector<char>(who_is_leader_msg.begin(), who_is_leader_msg.end()));
   packet pkt = leader_connection->receivePacket();
   NetworkManager::printPacket(pkt);
-  std::string get_clients_msg = "GET_CLIENTS";
-  leader_connection->sendPacket(CMD, 0, std::vector<char>(get_clients_msg.begin(), get_clients_msg.end()));
+  leader_connection->sendPacket(CMD, 0, "GET_CLIENTS");
   packet pkt2 = leader_connection->receivePacket();
   log_info("Recebendo lista de clientes do líder");
   NetworkManager::printPacket(pkt2);
@@ -153,8 +150,8 @@ void Server::run() {
         log_info("Criando novo ClientManager para o cliente %s", username.c_str());
         manager = createNewManager(LEADER, username);
         // envia para os peers a informação de que um novo cliente se conectou
-        std::string peer_msg = "CLIENT_CONNECTION " + username;
         for (auto &peer : peer_connections) {
+          std::string peer_msg = "CLIENT_CONNECTION " + username;
 
           // para cada um, cria um NetworkManager novo e envia a mensagem + porta
           // do novo NetworkManager
@@ -228,8 +225,7 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         if (state == LEADER) {
           log_info("Respondendo ao peer com o IP do líder");
           // responde com o proprio IP e porta
-          std::string response = "LEADER_IS " + ip;
-          peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
+          peer_manager->sendPacket(CMD, 0, "LEADER_IS " + ip);
         } else {
           log_info("Peer solicitou o líder, mas este servidor é um backup");
         }
