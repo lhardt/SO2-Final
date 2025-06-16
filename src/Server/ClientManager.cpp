@@ -41,15 +41,13 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
       packet pkt = network_manager->receivePacket();
       log_info("Recebendo push no clientManagerBackup\n");
       NetworkManager::printPacket(pkt);
-      std::string received_message(pkt._payload);
-      std::string command = received_message.substr(0, received_message.find(' '));
-      if (command == "WRITE") {
-        std::string file_name = received_message.substr(received_message.find(' ') + 1);
+      std::string file_name(pkt._payload);
+      if (pkt.type == t_WRITE) {
         log_info("Recebendo arquivo: %s", file_name.c_str());
         bool stop = false;
         while (!stop) {
           packet pkt_received = network_manager->receivePacket();
-          if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
+          if ( pkt_received.type == t_END_OF_FILE) {
             stop = true;
             log_info("Recebimento do arquivo %s finalizado", file_name.c_str());
             break;
@@ -58,7 +56,6 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
           file_manager->writeFile(file_name, data);
         }
       } else if (command == "DELETE") {
-        std::string file_name = received_message.substr(received_message.find(' ') + 1);
         log_info("Removendo arquivo: %s", file_name.c_str());
         file_manager->deleteFile(file_name);
       } else {

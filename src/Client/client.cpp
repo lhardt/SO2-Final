@@ -259,16 +259,19 @@ Client::Client(std::string _client_name, std::string _server_ip,
   // recebe o primeiro pacote do server
   packet pkt = command_manager->receivePacket();
   // payload do pacote está no formato PORT <port>
+
+  if( pkt.type == t_ERROR ){
+    log_error("Erro do servidor! %s. ", pkt._payload);
+    throw std::runtime_error(pkt._payload);
+  }
   log_assert( pkt.type == t_PORT, "Received package of wrong type! %d. ", pkt.type );
-  std::string payload(pkt._payload);
-  std::string port_str = payload.substr(payload.find(" ") + 1);
+  std::string port_str(pkt._payload);
   int port = std::stoi(port_str);
   this->push_port = port;
 
   // recebe o segundo pacote do server
   packet pkt2 = command_manager->receivePacket();
-  std::string payload2(pkt2._payload);
-  std::string port_str2 = payload2.substr(payload2.find(" ") + 1);
+  std::string port_str2(pkt2._payload);
   int port2 = std::stoi(port_str2);
   this->file_watcher_port = port2;
 
