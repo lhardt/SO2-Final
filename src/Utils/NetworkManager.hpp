@@ -2,9 +2,7 @@
 #include "FileManager.hpp"
 #include <cstdint>
 #include <memory>
-#include <netinet/in.h>
 #include <string>
-#include <sys/socket.h>
 #include <vector>
 
 #define MAX_PACKET_SIZE 2048
@@ -29,7 +27,6 @@ enum PacketType {
   t_LIST,
   t_END_OF_FILE,
   t_ERROR,
-
 };
 
 typedef struct packet {
