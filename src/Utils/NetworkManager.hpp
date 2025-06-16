@@ -8,8 +8,31 @@
 #include <vector>
 
 #define MAX_PACKET_SIZE 2048
-#define DATA 0
-#define CMD 1
+
+enum PacketType {
+  /** Sends the content of a file. */
+  t_DATA = 0,
+  /** */
+  t_DELETE,
+  t_WRITE,
+  t_FILE,
+  t_PORT,
+  t_CLIENT,
+  t_GET_CLIENTS,
+  t_CLIENTS,
+  t_PEER,
+  t_WHO_IS_LEADER,
+  t_LEADER,
+  t_CLIENT_CONNECTION,
+  t_FILE_NOT_FOUND,
+  t_FILE_FOUND,
+  t_UPLOAD,
+  t_DOWNLOAD,
+  t_LIST,
+  t_END_OF_FILE,
+  t_ERROR,
+
+};
 
 typedef struct packet {
   uint16_t type;

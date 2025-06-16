@@ -67,10 +67,9 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, dow)) { // faz uma copia nao sincronizada do arquivo para o diretorio local(de onde foi chamado o cliente)
       std::string file_name = cmdarg[1].str();
-      command_manager->sendPacket(CMD, 1, "DOWNLOAD " + file_name);
-      // espera resposta do servidor...
+      command_manager->sendPacket(t_DOWNLOAD, 1, file_name); // espera resposta do servidor...
       packet response = command_manager->receivePacket();
-      if (std::string(response._payload, response.length) == "FILE_NOT_FOUND") {
+      if (response.type == t_FILE_NOT_FOUND) {
         log_info("Arquivo não encontrado no servidor.");
         continue;
       } else if (std::string(response._payload, response.length) == "FILE_FOUND") {
@@ -81,8 +80,7 @@ void Client::handleIoThread() {
       log_info("Escrevendo arquivo: %s", file_name.c_str());
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();
-        if (std::string(pkt_received._payload, pkt_received.length) ==
-            "END_OF_FILE") {
+        if (pkt_received.type == t_END_OF_FILE) {
           stop = true;
           break;
         }
@@ -102,12 +100,11 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;
-      command_manager->sendPacket(CMD, 1, "LIST");
-
+      command_manager->sendPacket(t_LIST, 1, "");
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();
 
-        if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
+        if (pkt_received.type == t_END_OF_FILE) {
           stop = true;
           break;
         }
@@ -180,16 +177,14 @@ void Client::handleFileThread() {
         if (event->mask & IN_CLOSE_WRITE) {
           std::string file_name = event->name;
           log_info("Arquivo modificado: %s", file_name.c_str());
-          std::string command = "WRITE " + file_name;
           watcher_push_lock.lock();
-          file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          file_watcher_manager.sendPacket(t_WRITE, 1, file_name);
           file_watcher_manager.sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
           watcher_push_lock.unlock();
 
         } else if (event->mask & IN_DELETE) {
           log_info("Arquivo removido: %s", filepath.c_str());
-          std::string command = "DELETE " + std::string(event->name);
-          file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+          file_watcher_manager.sendPacket(t_DELETE, 1, event->name);
         }
       }
 
@@ -215,10 +210,8 @@ void Client::handlePushThread() {
     log_info("Aguardando push do servidor...");
     packet pkt = push_receiver.receivePacket();
     std::istringstream payload_stream(pkt._payload);
-    std::string command;
-    payload_stream >> command;
 
-    if (command == "WRITE") {
+    if (pkt.type == t_WRITE) {
       std::string file_name;
       payload_stream >> file_name;
 
@@ -231,7 +224,7 @@ void Client::handlePushThread() {
         packet pkt_received = push_receiver.receivePacket();
         std::string pkt_string = std::string(pkt_received._payload, pkt_received.length);
 
-        if (pkt_string == "END_OF_FILE") {
+        if (pkt.type == t_END_OF_FILE) {
           stop = true;
           break;
         }
@@ -241,14 +234,14 @@ void Client::handlePushThread() {
       }
       watcher_push_lock.unlock();
 
-    } else if (command == "DELETE") {
+    } else if (pkt.type == t_DELETE) {
 
       std::string file_name;
       payload_stream >> file_name;
       sync_dir_file_manager->deleteFile(file_name);
 
     } else {
-      log_error("Comando desconhecido recebido do servidor: %s", command.c_str());
+      log_error("Comando desconhecido recebido do servidor: %d. ", pkt.type);
     }
   }
 }
@@ -261,13 +254,12 @@ Client::Client(std::string _client_name, std::string _server_ip,
 
   // é o socket de commandos, tem que passar para a thread de IO
   this->command_manager = new NetworkManager("CommandManager", server_ip, server_port_int);
-  std::string command = "CLIENT " + client_name;
-
-  command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+  command_manager->sendPacket(t_CLIENT, 1, client_name);
 
   // recebe o primeiro pacote do server
   packet pkt = command_manager->receivePacket();
   // payload do pacote está no formato PORT <port>
+  log_assert( pkt.type == t_PORT, "Received package of wrong type! %d. ", pkt.type );
   std::string payload(pkt._payload);
   std::string port_str = payload.substr(payload.find(" ") + 1);
   int port = std::stoi(port_str);
