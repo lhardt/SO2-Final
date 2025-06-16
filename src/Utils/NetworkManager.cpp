@@ -59,6 +59,11 @@ void NetworkManager::sendPacket(packet *p) {
   }
 };
 
+
+void NetworkManager::sendPacket(uint16_t type, uint16_t seqn, const std::string &payload) {
+  sendPacket(type, seqn, std::vector<char>(payload.begin(), payload.end()));
+}
+
 void NetworkManager::sendPacket(uint16_t type, uint16_t seqn,
                                 const std::vector<char> &payload) {
   checkSocketInitialized();

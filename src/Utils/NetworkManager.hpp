@@ -65,6 +65,7 @@ public:
   void sendPacket(packet *p);
   void sendPacket(uint16_t type, uint16_t seqn,
                   const std::vector<char> &payload);
+  void sendPacket(uint16_t type, uint16_t seqn, const std::string &payload);
   packet receivePacket();
   void sendFileInChunks(const std::string &filepath, const size_t bufferSize,
                         FileManager &fileManager);
