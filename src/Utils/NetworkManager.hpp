@@ -10,9 +10,7 @@
 #define MAX_PACKET_SIZE 2048
 
 enum PacketType {
-  /** Sends the content of a file. */
-  t_DATA = 0,
-  /** */
+  t_DATA = 0, /** Sends the content of a file. */
   t_DELETE,
   t_WRITE,
   t_FILE,

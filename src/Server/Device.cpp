@@ -137,12 +137,7 @@ void Device::fileWatcherThread() {
       std::string file_name(pkt._payload);
 
       // NOTE: Never used?
-      //    Interpret the packet based on the first word
-      //   if (first_word == "CREATED") {
-      //     std::string file_name;
-      //     payload_stream >> file_name;
-      //     file_manager->createFile(file_name);
-      //   } else 
+      //   if (first_word == "CREATED") file_manager->createFile(file_name);
       if (pkt.type == t_WRITE) {
 
         if (!file_manager->isFileExists(file_name)) {
