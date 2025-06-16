@@ -2,9 +2,9 @@
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include "../Utils/State.hpp"
-#include "./Server.hpp"
 #include "Device.hpp"
 #include <iostream>
+#include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>

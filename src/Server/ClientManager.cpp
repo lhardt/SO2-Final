@@ -1,5 +1,6 @@
 #include "ClientManager.hpp"
 #include "../Utils/logger.hpp"
+#include "Server.hpp"
 #include <algorithm>
 #include <unistd.h>
 
