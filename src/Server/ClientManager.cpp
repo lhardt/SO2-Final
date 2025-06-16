@@ -55,16 +55,14 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
           std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
           file_manager->writeFile(file_name, data);
         }
-      } else if (command == "DELETE") {
+      } else if (pkt.type == t_DELETE) {
         log_info("Removendo arquivo: %s", file_name.c_str());
         file_manager->deleteFile(file_name);
       } else {
-        log_error("Comando desconhecido recebido: %s", command.c_str());
-        log_info("Thread de recebimento de push finalizada");
+        log_error("Comando desconhecido recebido: %d ", pkt.type);
       }
     } catch (const std::runtime_error &e) {
       log_warn("Erro ao receber push: %s", e.what());
-      log_info("Thread de recebimento de push finalizada");
       break; // Sai do loop se ocorrer um erro
     }
   }
