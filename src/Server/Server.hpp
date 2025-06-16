@@ -22,6 +22,7 @@ private:
   std::string ip;
   int main_socket_fd;
   std::mutex clients_mutex;
+  std::mutex peer_mutex;
   std::vector<NetworkManager *> peer_connections;
   NetworkManager *leader_connection;
   State state = LEADER;
@@ -35,5 +36,6 @@ private:
   void createMainSocket();
   void handlePeerThread(NetworkManager *peer_manager);
   std::vector<std::string> getClients();
+  std::vector<std::string> getBackupPeers();
   std::string getLocalIP();
 };

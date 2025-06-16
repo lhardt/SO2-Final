@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
+#include <vector>
 
 struct ThreadArg {
   ClientManager *manager;
@@ -141,19 +142,19 @@ void Server::run() {
     if (command == "CLIENT") {
       std::string username = received_message.substr(space_pos + 1);
       log_info("Cliente conectado com username: %s", username.c_str());
-      delete network_manager; // nao precisa mais do NetworkManager, pois o
-                              // socket vai ser entregue ao manager
 
       // verifica se o cliente já existe
       ClientManager *manager = clientExists(username);
       if (!manager) {
         log_info("Criando novo ClientManager para o cliente %s", username.c_str());
         manager = createNewManager(LEADER, username);
+        manager->setNetworkManager(network_manager);
         // envia para os peers a informação de que um novo cliente se conectou
+        peer_mutex.lock();
         for (auto &peer : peer_connections) {
           std::string peer_msg = "CLIENT_CONNECTION " + username;
 
-          // para cada um, cria um NetworkManager novo e envia a mensagem + porta
+          // para cada um, cria um NetworkManager novo(que vai ser o do ClientManager) e envia a mensagem + porta
           // do novo NetworkManager
           NetworkManager *peer_network_manager = new NetworkManager();
           int listen_port = peer_network_manager->createAndSetupSocket();
@@ -169,6 +170,7 @@ void Server::run() {
             log_info("Cliente: %s", manager->getUsername().c_str());
           }
         }
+        peer_mutex.unlock();
       } else {
         log_info("Cliente %s já existe, reutilizando ClientManager", username.c_str());
       }
@@ -177,7 +179,9 @@ void Server::run() {
     } else if (command == "PEER") {
       log_info("Nova conexão peer recebida");
       // Adiciona o novo peer à lista de conexões
-      peer_connections.push_back(network_manager); // nao precisa de mutex, pois aqui ainda é
+      peer_mutex.lock();
+      peer_connections.push_back(network_manager);
+      peer_mutex.unlock();
       // inicia thread para lidar com esse peer
       std::thread peer_thread(&Server::handlePeerThread, this, network_manager);
       peer_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
@@ -205,8 +209,14 @@ void Server::deliverToManager(ClientManager *manager, int sock_fd) {
 }
 
 vector<std::string> Server::getClients() {
+  std::lock_guard<std::mutex> lock(clients_mutex); // Protege o acesso à lista de clientes
   vector<std::string> client_list;
   for (ClientManager *manager : clients) {
+    if (manager == nullptr) {
+      log_warn("Encontrado ClientManager nulo na lista de clientes, pulando...");
+      continue; // pula se o manager for nulo
+    }
+    log_info("atualmente no cliente: %s", manager->getUsername().c_str());
     client_list.push_back(manager->getUsername() + " " + manager->getIp() + ":" + std::to_string(manager->getPort()));
   }
   return client_list;
@@ -233,14 +243,15 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         log_info("Peer solicitou a lista de clientes");
         std::vector<std::string> clients = getClients();
         std::string response = "CLIENTS ";
+        clients_mutex.lock();
         for (const auto &client : clients) {
           response += client + ";";
         }
+        clients_mutex.unlock();
         peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
         log_info("Lista de clientes enviada para o peer");
       } else if (command == "CLIENT_CONNECTION") {
-        std::string client_info =
-            received_message.substr(received_message.find(' ') + 1);
+        std::string client_info = received_message.substr(received_message.find(' ') + 1);
         std::istringstream iss(client_info);
         std::string username;
         int porta;
@@ -259,6 +270,17 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
       }
     } catch (const std::exception &e) {
       log_error("Erro ao receber pacote do peer: %s", e.what());
+      // se ocorrer um erro, tira o peer da lista de conexões
+      peer_mutex.lock();
+      auto it = std::find(peer_connections.begin(), peer_connections.end(), peer_manager);
+      if (it != peer_connections.end()) {
+        delete *it; // libera o NetworkManager
+        peer_connections.erase(it);
+        log_info("Peer desconectado e removido da lista de conexões");
+      } else {
+        log_warn("Peer não encontrado na lista de conexões");
+      }
+      peer_mutex.unlock();
       break; // sai do loop se houver erro
     }
   }

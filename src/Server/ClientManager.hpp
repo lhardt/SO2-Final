@@ -27,6 +27,7 @@ public:
   int getPort();
   void add_new_backup(NetworkManager *peer_manager);
   void receivePushsOn(NetworkManager *network_manager);
+  void setNetworkManager(NetworkManager *network_manager);
 
 private:
   vector<Device *> devices;
