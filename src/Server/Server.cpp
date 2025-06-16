@@ -45,17 +45,11 @@ Server::Server(State state, int running_port, std::string ip, int port) {
   this->ip = getLocalIP(); // pega o IP local
   createMainSocket();
   leader_connection->connectTo(ip, port);
-  std::string peer_msg = "PEER 0";
-  leader_connection->sendPacket(
-      CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
-  std::string who_is_leader_msg = "WHO_IS_LEADER";
-  leader_connection->sendPacket(
-      CMD, 0,
-      std::vector<char>(who_is_leader_msg.begin(), who_is_leader_msg.end()));
+  leader_connection->sendPacket(t_PEER, 1, "0");
+  leader_connection->sendPacket(t_WHO_IS_LEADER, 0, "");
   packet pkt = leader_connection->receivePacket();
   NetworkManager::printPacket(pkt);
-  std::string get_clients_msg = "GET_CLIENTS";
-  leader_connection->sendPacket(CMD, 0, std::vector<char>(get_clients_msg.begin(), get_clients_msg.end()));
+  leader_connection->sendPacket(t_GET_CLIENTS, 0, "");
   packet pkt2 = leader_connection->receivePacket();
   log_info("Recebendo lista de clientes do líder");
   NetworkManager::printPacket(pkt2);
@@ -131,18 +125,9 @@ void Server::run() {
 
     packet pkt = network_manager->receivePacket();
     NetworkManager::printPacket(pkt);
-    std::string received_message(pkt._payload);
-    // separa a mesagem com base no primeiro espaço
-    size_t space_pos = received_message.find(' ');
-    if (space_pos == std::string::npos) {
-      log_error("Mensagem inválida recebida, não contém espaço");
-      close(new_socket_fd);
-      continue; // ignora essa conexão
-    }
-    std::string command = received_message.substr(0, space_pos);
 
-    if (command == "CLIENT") {
-      std::string username = received_message.substr(space_pos + 1);
+    if ( pkt.type == t_CLIENT ) {
+      std::string username(pkt._payload);
       log_info("Cliente conectado com username: %s", username.c_str());
       delete network_manager; // nao precisa mais do NetworkManager, pois o
                               // socket vai ser entregue ao manager
@@ -162,7 +147,7 @@ void Server::run() {
           int listen_port = peer_network_manager->createAndSetupSocket();
           peer_msg += " " + std::to_string(listen_port);
           log_info("Enviando informação de conexão do cliente %s para o peer", username.c_str());
-          peer->sendPacket(CMD, 0, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+          peer->sendPacket(t_CLIENT_CONNECTION, 0, peer_msg);
           // passa o novo NetworkManager para o ClientManager
           peer_network_manager->acceptConnection();
           manager->add_new_backup(peer_network_manager);
@@ -177,7 +162,7 @@ void Server::run() {
       }
       deliverToManager(manager, new_socket_fd); // entrega o socket para o manager
 
-    } else if (command == "PEER") {
+    } else if ( pkt.type == t_PEER ) {
       log_info("Nova conexão peer recebida");
       // Adiciona o novo peer à lista de conexões
       peer_connections.push_back(network_manager); // nao precisa de mutex, pois aqui ainda é
@@ -223,33 +208,29 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
       NetworkManager::printPacket(pkt);
 
       std::string received_message(pkt._payload);
-      std::string command = received_message.substr(0, received_message.find(' '));
-      if (command == "WHO_IS_LEADER") {
+      if (pkt.type == t_WHO_IS_LEADER) {
         if (state == LEADER) {
           log_info("Respondendo ao peer com o IP do líder");
           // responde com o proprio IP e porta
-          std::string response = "LEADER_IS " + ip;
-          peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
+          peer_manager->sendPacket(t_LEADER, 0, ip);
         } else {
           log_info("Peer solicitou o líder, mas este servidor é um backup");
         }
-      } else if (command == "GET_CLIENTS") {
+      } else if (pkt.type == t_GET_CLIENTS) {
         log_info("Peer solicitou a lista de clientes");
         std::vector<std::string> clients = getClients();
-        std::string response = "CLIENTS ";
-        for (const auto &client : clients) {
+	std::string response = "";
+	for (const auto &client : clients) {
           response += client + ";";
         }
-        peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
+        peer_manager->sendPacket(t_CLIENTS, 0, response);
         log_info("Lista de clientes enviada para o peer");
-      } else if (command == "CLIENT_CONNECTION") {
-        std::string client_info =
-            received_message.substr(received_message.find(' ') + 1);
-        std::istringstream iss(client_info);
+      } else if (pkt.type ==  t_CLIENT_CONNECTION) {
+        std::istringstream iss(received_message);
         std::string username;
         int porta;
         iss >> username >> porta;
-        log_info("Peer enviou informação de conexão de cliente: %s", client_info.c_str());
+        log_info("Peer enviou informação de conexão de cliente: %s", received_message.c_str());
         if (!clientExists(username)) {
           // cria um novo ClientManager para o client que se conectou
           NetworkManager *push_receiver = new NetworkManager();
@@ -259,7 +240,7 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
           push_receiver_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
         }
       } else {
-        log_warn("Comando desconhecido recebido do peer: %s", command.c_str());
+        log_warn("Comando desconhecido recebido do peer: %d ", pkt.type);
       }
     } catch (const std::exception &e) {
       log_error("Erro ao receber pacote do peer: %s", e.what());

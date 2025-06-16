@@ -21,7 +21,7 @@ public:
   ClientManager(State State, string username);
   string getUsername();
   void handle_new_connection(int socket);
-  void handle_new_push(string command, Device *caller);
+  void handle_new_push(packet pkt, Device *caller);
   void removeDevice(Device *device);
   std::string getIp();
   int getPort();

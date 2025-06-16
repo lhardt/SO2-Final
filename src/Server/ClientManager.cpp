@@ -17,8 +17,7 @@ void ClientManager::handle_new_connection(int socket) {
     if (devices.size() == max_devices) {
       log_warn("Limite de dispositivos atingido.");
       NetworkManager network_manager(socket, "Limite de dispositivos");
-      std::string command = "Limite de dispositivos atingido";
-      network_manager.sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
+      network_manager.sendPacket(t_ERROR, 0, "Limite de dispositivos atingido");
       network_manager.closeConnection();
       return;
     }
@@ -77,25 +76,24 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
 
 string ClientManager::getUsername() { return this->username; }
 
-void ClientManager::handle_new_push(string command, Device *caller) {
+void ClientManager::handle_new_push(packet pkt, Device *caller) {
+  std::string content = pkt._payload;
   for (auto device : this->devices) {
     if (device != caller)
-      device->sendPushTo(command);
+      device->sendPushTo(pkt.type, content);
   }
-  std::string command_upper = command.substr(0, command.find(' '));
   // manda o push para os backups
   // TODO paralelizar o envio para os backups e proteger o acesso à lsita de backups
   for (auto backup : backup_peers) {
     // inicia uma thread para enviar o push e o arquivo para os backups
-    backup->sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
-    if (command_upper == "WRITE") {
-      std::string file_name = command.substr(command.find(' ') + 1);
-      log_info("Enviando arquivo: %s para backup", file_name.c_str());
-      backup->sendFileInChunks(file_name, MAX_PACKET_SIZE, *file_manager);
-    } else if (command_upper == "DELETE") {
+    backup->sendPacket(pkt.type, 0, content);
+    if (pkt.type == t_WRITE) {
+      log_info("Enviando arquivo: %s para backup", content.c_str());
+      backup->sendFileInChunks(content, MAX_PACKET_SIZE, *file_manager);
+    } else if (pkt.type == t_DELETE) {
       log_info("Enviando comando de delete para backup");
     } else {
-      log_error("Comando desconhecido enviado para backup: %s", command.c_str());
+      log_error("Comando desconhecido enviado para backup: %d %s", pkt.type, content.c_str());
     }
   }
 }

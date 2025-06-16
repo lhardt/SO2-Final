@@ -28,6 +28,8 @@ private:
   std::thread *push_thread;
   std::thread *file_watcher_thread;
   FileManager *file_manager;
+
+  int push_type;
   std::string push_command;
 
   void commandThread();
@@ -42,7 +44,7 @@ public:
   void stop();
   bool isStopRequested();
   void sendFileTo(std::string file_path);  // no socket de comando
-  void sendPushTo(std::string &file_path); // no socket de push
+  void sendPushTo(int type, std::string &file_path); // no socket de push
   void buildFile(std::string &file_name);
   ~Device();
 };
