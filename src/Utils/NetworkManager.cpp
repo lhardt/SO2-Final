@@ -60,6 +60,9 @@ void NetworkManager::sendPacket(packet *p) {
 };
 
 
+void NetworkManager::sendPacket(uint16_t type, uint16_t seqn) {
+  sendPacket(type, seqn, "xxx");
+}
 void NetworkManager::sendPacket(uint16_t type, uint16_t seqn, const std::string &payload) {
   sendPacket(type, seqn, std::vector<char>(payload.begin(), payload.end()));
 }
@@ -101,11 +104,13 @@ void NetworkManager::checkSocketInitialized() {
 bool NetworkManager::isPacketValid(const packet &pkt) {
   // Verifica se o tamanho total do pacote é válido
   if (pkt.total_size < HEADER_SIZE || pkt.length > MAX_PACKET_SIZE) {
-    return false;
+     log_info("Invalid packet {} {}", pkt.total_size, pkt.length);
+     return false;
   }
 
   // Verifica se o payload é nulo quando o comprimento é zero
   if (pkt.length == 0 && pkt._payload != nullptr) {
+     log_info("Invalid packet {} {}", pkt.total_size, pkt.length);
     return false;
   }
 
@@ -212,7 +217,7 @@ void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t 
                           fileData.begin() + offset + chunkSize);
 
       std::string command = payload;
-      sendPacket(DATA, sequenceNumber++,
+      sendPacket(t_DATA, sequenceNumber++,
                  std::vector<char>(command.begin(), command.end()));
       log_info("Enviado chunck de tamanho %zu do arquivo: %s, %d/%d", chunkSize,
                filepath.c_str(), sequenceNumber, totalPackets);
@@ -221,7 +226,7 @@ void NetworkManager::sendFileInChunks(const std::string &filepath, const size_t 
     }
 
     // Envia um pacote final indicando o término do envio
-    sendPacket(CMD, sequenceNumber, "END_OF_FILE");
+    sendPacket(t_END_OF_FILE, sequenceNumber);
     log_info("Arquivo enviado com sucesso: %s", filepath.c_str());
   } catch (const std::exception &e) {
     log_error("Falha ao enviar ou ler arquivo: %s", e.what());
@@ -283,7 +288,7 @@ packet NetworkManager::deserializePacket(const char *buffer,
   pkt.length = ntohs(net_length);
 
   if (pkt.length > buffer_size - HEADER_SIZE || pkt.length < 0) {
-    throw std::runtime_error("Invalid packet length");
+    throw std::runtime_error("Invalid packet length " + std::to_string(pkt.length) );
   }
 
   pkt._payload = new char[pkt.length + 1];
@@ -487,4 +492,25 @@ int connect_to_socket(std::string ip, int port) {
     }
   }
   return sock;
+}
+
+
+std::vector<std::string> list_to_packet_content(std::string content){
+  std::vector<std::string> result;
+  int left = 1;
+  for(int i = 1; i < content.size(); ++i){
+    if(content[i] == ';'){
+       result.push_back( content.substr(left, i) );
+       left = i;
+    } 
+  }
+  return result;
+}
+std::string list_to_packet_content(std::vector<std::string> vec){
+  // TODO escape characters ';', '[', and ']';
+  std::string result;
+  for( std::string s : vec )
+    result += s + ";";
+
+  return "[" + result + "]";
 }

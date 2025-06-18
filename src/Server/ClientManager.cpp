@@ -17,8 +17,7 @@ void ClientManager::handle_new_connection(int socket) {
     if (devices.size() == max_devices) {
       log_warn("Limite de dispositivos atingido.");
       NetworkManager network_manager(socket, "Limite de dispositivos");
-      std::string command = "Limite de dispositivos atingido";
-      network_manager.sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
+      network_manager.sendPacket(t_ERROR, 0, "Limite de dispositivos atingido");
       network_manager.closeConnection();
       return;
     }
@@ -42,15 +41,13 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
       packet pkt = network_manager->receivePacket();
       log_info("Recebendo push no clientManagerBackup\n");
       NetworkManager::printPacket(pkt);
-      std::string received_message(pkt._payload);
-      std::string command = received_message.substr(0, received_message.find(' '));
-      if (command == "WRITE") {
-        std::string file_name = received_message.substr(received_message.find(' ') + 1);
+      std::string file_name(pkt._payload);
+      if (pkt.type == t_WRITE) {
         log_info("Recebendo arquivo: %s", file_name.c_str());
         bool stop = false;
         while (!stop) {
           packet pkt_received = network_manager->receivePacket();
-          if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
+          if ( pkt_received.type == t_END_OF_FILE) {
             stop = true;
             log_info("Recebimento do arquivo %s finalizado", file_name.c_str());
             break;
@@ -58,17 +55,14 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
           std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
           file_manager->writeFile(file_name, data);
         }
-      } else if (command == "DELETE") {
-        std::string file_name = received_message.substr(received_message.find(' ') + 1);
+      } else if (pkt.type == t_DELETE) {
         log_info("Removendo arquivo: %s", file_name.c_str());
         file_manager->deleteFile(file_name);
       } else {
-        log_error("Comando desconhecido recebido: %s", command.c_str());
-        log_info("Thread de recebimento de push finalizada");
+        log_error("Comando desconhecido recebido: %d ", pkt.type);
       }
     } catch (const std::runtime_error &e) {
       log_warn("Erro ao receber push: %s", e.what());
-      log_info("Thread de recebimento de push finalizada");
       break; // Sai do loop se ocorrer um erro
     }
   }
@@ -77,25 +71,24 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
 
 string ClientManager::getUsername() { return this->username; }
 
-void ClientManager::handle_new_push(string command, Device *caller) {
+void ClientManager::handle_new_push(packet pkt, Device *caller) {
+  std::string content = pkt._payload;
   for (auto device : this->devices) {
     if (device != caller)
-      device->sendPushTo(command);
+      device->sendPushTo(pkt.type, content);
   }
-  std::string command_upper = command.substr(0, command.find(' '));
   // manda o push para os backups
   // TODO paralelizar o envio para os backups e proteger o acesso à lsita de backups
   for (auto backup : backup_peers) {
     // inicia uma thread para enviar o push e o arquivo para os backups
-    backup->sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
-    if (command_upper == "WRITE") {
-      std::string file_name = command.substr(command.find(' ') + 1);
-      log_info("Enviando arquivo: %s para backup", file_name.c_str());
-      backup->sendFileInChunks(file_name, MAX_PACKET_SIZE, *file_manager);
-    } else if (command_upper == "DELETE") {
+    backup->sendPacket(pkt.type, 0, content);
+    if (pkt.type == t_WRITE) {
+      log_info("Enviando arquivo: %s para backup", content.c_str());
+      backup->sendFileInChunks(content, MAX_PACKET_SIZE, *file_manager);
+    } else if (pkt.type == t_DELETE) {
       log_info("Enviando comando de delete para backup");
     } else {
-      log_error("Comando desconhecido enviado para backup: %s", command.c_str());
+      log_error("Comando desconhecido enviado para backup: %d %s", pkt.type, content.c_str());
     }
   }
 }
@@ -116,8 +109,18 @@ void ClientManager::removeDevice(Device *device) {
     log_error("Erro ao remover dispositivo: %s", e.what());
   }
 }
-std::string ClientManager::getIp() { return network_manager->getIP(); }
-int ClientManager::getPort() { return network_manager->getPort(); }
+std::string ClientManager::getIp() {
+  if( network_manager == nullptr ){
+    throw std::runtime_error("GetIP without networkManager!");
+  }
+  return network_manager->getIP(); 
+}
+int ClientManager::getPort() {
+  if( network_manager == nullptr ){
+    throw std::runtime_error("GetPort without networkManager!");
+  }
+  return network_manager->getPort(); 
+}
 
 void ClientManager::add_new_backup(NetworkManager *peer_manager) {
   std::lock_guard<std::mutex> lock(device_mutex);

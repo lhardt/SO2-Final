@@ -2,14 +2,32 @@
 #include "FileManager.hpp"
 #include <cstdint>
 #include <memory>
-#include <netinet/in.h>
 #include <string>
-#include <sys/socket.h>
 #include <vector>
 
 #define MAX_PACKET_SIZE 2048
-#define DATA 0
-#define CMD 1
+
+enum PacketType {
+  t_DATA = 0, /** Sends the content of a file. */
+  t_DELETE,
+  t_WRITE,
+  t_FILE,
+  t_PORT,
+  t_CLIENT,
+  t_GET_CLIENTS,
+  t_CLIENTS,
+  t_PEER,
+  t_WHO_IS_LEADER,
+  t_LEADER,
+  t_CLIENT_CONNECTION,
+  t_FILE_NOT_FOUND,
+  t_FILE_FOUND,
+  t_UPLOAD,
+  t_DOWNLOAD,
+  t_LIST,
+  t_END_OF_FILE,
+  t_ERROR,
+};
 
 typedef struct packet {
   uint16_t type;
@@ -43,6 +61,7 @@ public:
   void sendPacket(uint16_t type, uint16_t seqn,
                   const std::vector<char> &payload);
   void sendPacket(uint16_t type, uint16_t seqn, const std::string &payload);
+  void sendPacket(uint16_t type, uint16_t seqn);
   packet receivePacket();
   void sendFileInChunks(const std::string &filepath, const size_t bufferSize,
                         FileManager &fileManager);
@@ -70,3 +89,5 @@ private:
 };
 
 int connect_to_socket(std::string server_name, int server_port);
+std::string list_to_packet_content(std::vector<std::string> values);
+std::vector<std::string> packet_content_to_list(std::string data);
