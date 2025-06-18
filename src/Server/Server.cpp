@@ -46,10 +46,10 @@ Server::Server(State state, int running_port, std::string ip, int port) {
   createMainSocket();
   leader_connection->connectTo(ip, port);
   leader_connection->sendPacket(t_PEER, 1, "0");
-  leader_connection->sendPacket(t_WHO_IS_LEADER, 0, "");
+  leader_connection->sendPacket(t_WHO_IS_LEADER, 0);
   packet pkt = leader_connection->receivePacket();
   NetworkManager::printPacket(pkt);
-  leader_connection->sendPacket(t_GET_CLIENTS, 0, "");
+  leader_connection->sendPacket(t_GET_CLIENTS, 0);
   packet pkt2 = leader_connection->receivePacket();
   log_info("Recebendo lista de clientes do líder");
   NetworkManager::printPacket(pkt2);
@@ -218,12 +218,7 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         }
       } else if (pkt.type == t_GET_CLIENTS) {
         log_info("Peer solicitou a lista de clientes");
-        std::vector<std::string> clients = getClients();
-	std::string response = "";
-	for (const auto &client : clients) {
-          response += client + ";";
-        }
-        peer_manager->sendPacket(t_CLIENTS, 0, response);
+        peer_manager->sendPacket(t_CLIENTS, 0, list_to_packet_content(getClients()));
         log_info("Lista de clientes enviada para o peer");
       } else if (pkt.type ==  t_CLIENT_CONNECTION) {
         std::istringstream iss(received_message);
@@ -243,7 +238,8 @@ void Server::handlePeerThread(NetworkManager *peer_manager) {
         log_warn("Comando desconhecido recebido do peer: %d ", pkt.type);
       }
     } catch (const std::exception &e) {
-      log_error("Erro ao receber pacote do peer: %s", e.what());
+      // Não necessariamente o erro é sobre um pacote recebido. Pode ser por um enviado.
+      log_error("Erro ao processar pacote do peer: %s", e.what());
       break; // sai do loop se houver erro
     }
   }

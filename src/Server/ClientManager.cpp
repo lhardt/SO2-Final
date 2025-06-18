@@ -109,8 +109,18 @@ void ClientManager::removeDevice(Device *device) {
     log_error("Erro ao remover dispositivo: %s", e.what());
   }
 }
-std::string ClientManager::getIp() { return network_manager->getIP(); }
-int ClientManager::getPort() { return network_manager->getPort(); }
+std::string ClientManager::getIp() {
+  if( network_manager == nullptr ){
+    throw std::runtime_error("GetIP without networkManager!");
+  }
+  return network_manager->getIP(); 
+}
+int ClientManager::getPort() {
+  if( network_manager == nullptr ){
+    throw std::runtime_error("GetPort without networkManager!");
+  }
+  return network_manager->getPort(); 
+}
 
 void ClientManager::add_new_backup(NetworkManager *peer_manager) {
   std::lock_guard<std::mutex> lock(device_mutex);

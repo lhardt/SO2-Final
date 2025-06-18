@@ -61,6 +61,7 @@ public:
   void sendPacket(uint16_t type, uint16_t seqn,
                   const std::vector<char> &payload);
   void sendPacket(uint16_t type, uint16_t seqn, const std::string &payload);
+  void sendPacket(uint16_t type, uint16_t seqn);
   packet receivePacket();
   void sendFileInChunks(const std::string &filepath, const size_t bufferSize,
                         FileManager &fileManager);
@@ -88,3 +89,5 @@ private:
 };
 
 int connect_to_socket(std::string server_name, int server_port);
+std::string list_to_packet_content(std::vector<std::string> values);
+std::vector<std::string> packet_content_to_list(std::string data);

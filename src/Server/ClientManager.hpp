@@ -30,11 +30,11 @@ public:
 
 private:
   vector<Device *> devices;
-  FileManager *file_manager;
-  NetworkManager *network_manager;
+  FileManager *file_manager = nullptr;
+  NetworkManager *network_manager = nullptr;
   vector<NetworkManager *> backup_peers; // Lista de backups
   int max_devices;
-  Server *server; // Referência ao servidor
+  Server *server = nullptr; // Referência ao servidor
   string username;
   std::mutex device_mutex; // Mutex para proteger o acesso à lista de dispositivos
   State state;

@@ -100,7 +100,7 @@ void Client::handleIoThread() {
 
     } else if (regex_match(cmdline, cmdarg, lsr)) {
       bool stop = false;
-      command_manager->sendPacket(t_LIST, 1, "");
+      command_manager->sendPacket(t_LIST, 1);
       while (!stop) {
         packet pkt_received = command_manager->receivePacket();
 

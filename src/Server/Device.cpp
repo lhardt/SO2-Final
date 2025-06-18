@@ -53,10 +53,10 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
         std::string file_name;
         payload_stream >> file_name;
         if (!file_manager->isFileExists(file_name)) {
-          command_manager->sendPacket(t_FILE_NOT_FOUND, 1, "");
+          command_manager->sendPacket(t_FILE_NOT_FOUND, 1);
           continue;
         } else {
-          command_manager->sendPacket(t_FILE_FOUND, 1, "");
+          command_manager->sendPacket(t_FILE_FOUND, 1);
         }
         command_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE,
                                           *file_manager);
@@ -73,7 +73,7 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
           fim = "NAO HÁ ARQUIVOS";
         }
         command_manager->sendPacket(t_DATA, 1, vector<char>(fim.begin(), fim.end()));
-        command_manager->sendPacket(t_END_OF_FILE, 1, "");
+        command_manager->sendPacket(t_END_OF_FILE, 1);
       } else {
         log_error("Comando desconhecido recebido do cliente: %d", pkt.type);
       }
