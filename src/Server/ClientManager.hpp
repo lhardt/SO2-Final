@@ -2,9 +2,9 @@
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include "../Utils/State.hpp"
-#include "./Server.hpp"
 #include "Device.hpp"
 #include <iostream>
+#include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
@@ -27,6 +27,7 @@ public:
   int getPort();
   void add_new_backup(NetworkManager *peer_manager);
   void receivePushsOn(NetworkManager *network_manager);
+  void setNetworkManager(NetworkManager *network_manager);
 
 private:
   vector<Device *> devices;

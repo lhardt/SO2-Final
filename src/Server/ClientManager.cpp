@@ -1,5 +1,6 @@
 #include "ClientManager.hpp"
 #include "../Utils/logger.hpp"
+#include "Server.hpp"
 #include <algorithm>
 #include <unistd.h>
 
@@ -123,4 +124,10 @@ void ClientManager::add_new_backup(NetworkManager *peer_manager) {
   std::lock_guard<std::mutex> lock(device_mutex);
   backup_peers.push_back(peer_manager);
   log_info("Novo backup adicionado. Total de backups: %d", backup_peers.size());
+}
+
+void ClientManager::setNetworkManager(NetworkManager *network_manager) {
+  this->network_manager = network_manager;
+  log_info("NetworkManager configurado com IP: %s e porta: %d",
+           network_manager->getIP().c_str(), network_manager->getPort());
 }
