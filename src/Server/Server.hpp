@@ -13,6 +13,12 @@ using namespace std;
 class ClientManager;
 class ElectionManager;
 
+typedef struct PeerInfo {
+  std::string ip;
+  int listen_port;
+  NetworkManager *network_manager;
+} PeerInfo;
+
 class Server {
 public:
   Server(State state, int running_port = PORT);
@@ -30,7 +36,7 @@ private:
   int main_socket_fd;
   std::mutex clients_mutex;
   std::mutex peer_mutex;
-  std::vector<NetworkManager *> peer_connections;
+  std::vector<PeerInfo *> peer_connections;
   NetworkManager *leader_connection;
   State state = LEADER;
   ElectionManager *electionManager = nullptr;
@@ -42,5 +48,6 @@ private:
   ClientManager *createNewBackupClientManager(std::string username, NetworkManager *push_receiver);
   void deliverToManager(ClientManager *manager, int socket);
   void createMainSocket();
-  void handlePeerThread(NetworkManager *peer_manager);
+  void handlePeerThread(PeerInfo *peer_info);
+  void connectToPeer(std::string ip, int port);
 };

@@ -2,7 +2,6 @@
 #include "FileManager.hpp"
 #include "logger.hpp"
 #include <arpa/inet.h>
-#include <thread>
 #include <cstddef>
 #include <cstring>
 #include <fstream>
@@ -11,11 +10,11 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 
 NetworkManager::NetworkManager(const std::string &name)
     : socket_fd(-1), name(name) {}
-
 
 NetworkManager::NetworkManager(int socket_fd, const std::string &name)
     : socket_fd(socket_fd), name(name) {
@@ -24,12 +23,13 @@ NetworkManager::NetworkManager(int socket_fd, const std::string &name)
   }
 }
 
-NetworkManager::NetworkManager(std::string name, std::string ip, int port){
+NetworkManager::NetworkManager(std::string name, std::string ip, int port) {
   int sock = connect_to_socket(ip, port);
   this->socket_fd = sock;
   this->name = name;
-  
-  if( sock <= 0) throw std::runtime_error("Socket wasn't created succesfully!");
+
+  if (sock <= 0)
+    throw std::runtime_error("Socket wasn't created succesfully!");
 
   log_info("Network Manager [%s] conectou a [%s : %d]!", name.c_str(), ip.c_str(), port);
 }
@@ -58,7 +58,6 @@ void NetworkManager::sendPacket(packet *p) {
     total_sent += sent;
   }
 };
-
 
 void NetworkManager::sendPacket(uint16_t type, uint16_t seqn, const std::string &payload) {
   sendPacket(type, seqn, std::vector<char>(payload.begin(), payload.end()));
@@ -379,6 +378,25 @@ void NetworkManager::closeConnection() {
   }
 }
 
+std::string NetworkManager::getPeerIP() {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket not initialized");
+  }
+
+  sockaddr_in addr;
+  socklen_t addrlen = sizeof(addr);
+  if (getpeername(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+    throw std::runtime_error("Failed to get peer name");
+  }
+
+  char ip_str[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &addr.sin_addr, ip_str, sizeof(ip_str)) == nullptr) {
+    throw std::runtime_error("Failed to convert IP address to string");
+  }
+
+  return std::string(ip_str);
+}
+
 std::string NetworkManager::getIP() {
   if (socket_fd == -1) {
     throw std::runtime_error("Socket not initialized");
@@ -412,7 +430,7 @@ int NetworkManager::getPort() {
   return ntohs(addr.sin_port);
 }
 
-void NetworkManager::connectTo(const std::string &ip, int port) {
+int NetworkManager::connectTo(const std::string &ip, int port) {
   if (socket_fd != -1) {
     throw std::runtime_error("Socket already initialized");
   }
@@ -438,6 +456,7 @@ void NetworkManager::connectTo(const std::string &ip, int port) {
   }
 
   log_info("Connected to server at %s:%d", ip.c_str(), port);
+  return 1;
 }
 
 void NetworkManager::printPacket(packet &pkt) {
@@ -472,7 +491,8 @@ int connect_to_socket(std::string ip, int port) {
     return -1;
   }
 
-  int retries = 0, retry_time_ms = 1000, max_retries = 150;; // 1  segundo cada, 2.5 min.
+  int retries = 0, retry_time_ms = 1000, max_retries = 150;
+  ; // 1  segundo cada, 2.5 min.
   while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     int err = errno;
     log_warn("Falha (errno=%d) ao conectar com [%s:%d]. Cliente irá esperar 500ms", err, ip.c_str(), port);
@@ -480,11 +500,25 @@ int connect_to_socket(std::string ip, int port) {
     std::this_thread::sleep_for(sleep_time);
     retries++;
 
-    if(retries > max_retries){
+    if (retries > max_retries) {
       log_warn("Excedeu o máximo de tentativas para conectar a [%s:port].", ip.c_str(), port);
       close(sock);
       return -1;
     }
   }
   return sock;
+}
+
+int NetworkManager::getPeerPort() {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket not initialized");
+  }
+
+  sockaddr_in addr;
+  socklen_t addrlen = sizeof(addr);
+  if (getpeername(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+    throw std::runtime_error("Failed to get peer name");
+  }
+
+  return ntohs(addr.sin_port);
 }
