@@ -54,30 +54,38 @@ Server::Server(State state, int running_port, std::string ip, int port) {
 
   std::string peer_msg = "PEER " + this->ip + ":" + std::to_string(this->port);
   leader_connection->sendPacket(CMD, 1, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+  packet pkt = leader_connection->receivePacket();
+  NetworkManager::printPacket(pkt);
 
   leader_connection->sendPacket(CMD, 0, "GET_CLIENTS");
   packet pkt2 = leader_connection->receivePacket();
   log_info("Recebendo lista de clientes do líder");
   NetworkManager::printPacket(pkt2);
 
-  std::string get_peers_msg = "GET_PEERS";
-  leader_connection->sendPacket(CMD, 0, std::vector<char>(get_peers_msg.begin(), get_peers_msg.end()));
-  packet pkt3 = leader_connection->receivePacket();
-  log_info("Recebendo lista de peers do líder");
-  NetworkManager::printPacket(pkt3);
+  // std::string get_peers_msg = "GET_PEERS";
+  // leader_connection->sendPacket(CMD, 0, std::vector<char>(get_peers_msg.begin(), get_peers_msg.end()));
+  // packet pkt3 = leader_connection->receivePacket();
+  // log_info("Recebendo lista de peers do líder");
+  // NetworkManager::printPacket(pkt3);
 
   // separa a mensagem recebida em partes (delimitadas por ';')
   //  ignora o "PEERS " no começo
-  std::string peers_str(pkt3._payload);
+  std::string peers_str(pkt._payload);
   size_t pos = peers_str.find(' ');
   if (pos != std::string::npos) {
     peers_str = peers_str.substr(pos + 1); // remove o "PEERS "
   }
   std::istringstream iss(peers_str);
   std::string peer_info;
+  vector<std::string> peer_info_list;
+  log_info("Valor de peers_str: %s", peers_str.c_str());
   while (std::getline(iss, peer_info, ';')) {
-    if (peer_info.empty())
+    log_info("aaaaa");
+    if (peer_info.empty()) {
+      log_warn("Encontrado peer_info vazio, pulando...");
       continue; // ignora strings vazias
+    }
+    peer_info_list.push_back(peer_info);
     size_t colon_pos = peer_info.find(':');
     if (colon_pos == std::string::npos) {
       log_error("Peer info inválido: %s", peer_info.c_str());
@@ -87,7 +95,7 @@ Server::Server(State state, int running_port, std::string ip, int port) {
     int peer_port = std::stoi(peer_info.substr(colon_pos + 1));
     if (peer_ip == this->ip && peer_port == this->port) {
       log_info("Ignorando conexão com o próprio servidor");
-      continue; // ignora a própria conexão
+      continue;
     }
     NetworkManager *peer_network_manager = new NetworkManager();
     PeerInfo *peer = new PeerInfo{peer_ip, peer_port, peer_network_manager};
@@ -97,10 +105,18 @@ Server::Server(State state, int running_port, std::string ip, int port) {
     std::string peer_msg = "PEER " + this->ip + ":" + std::to_string(this->port);
     peer_network_manager->sendPacket(CMD, 0, std::vector<char>(peer_msg.begin(), peer_msg.end()));
     if (res) {
+      log_info("Conexão com o peer %s:%d estabelecida", peer_ip.c_str(), peer_port);
       std::thread peer_thread(&Server::handlePeerThread, this, peer);
       peer_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
     } else {
       log_error("Falha ao conectar ao peer: %s:%d", peer_ip.c_str(), peer_port);
+    }
+  }
+  for (int i = 0; i < peer_info_list.size(); i++) {
+    if (peer_info_list[i] == this->ip + ":" + std::to_string(this->port)) {
+      std::string next_peer = i + 1 < peer_info_list.size() ? peer_info_list[i + 1] : peer_info_list[0];
+      this->electionManager->setNextPeer(next_peer);
+      break;
     }
   }
 
@@ -243,6 +259,18 @@ void Server::run() {
       peer_connections.push_back(peer_info);
       peer_mutex.unlock();
 
+      if (this->state == LEADER) {
+        std::string new_peer_list_msg = "PEERS ";
+        for (const auto &peer : peer_connections) {
+          new_peer_list_msg += peer->ip + ":" + std::to_string(peer->listen_port) + ";";
+        }
+        // envia a lista atualizada de peers para todos os peers conectados
+        for (PeerInfo *peer : peer_connections) {
+          log_info("Enviando lista de peers atualizada para o peer: %s:%d", peer->ip.c_str(), peer->listen_port);
+          peer->network_manager->sendPacket(CMD, 0, std::vector<char>(new_peer_list_msg.begin(), new_peer_list_msg.end()));
+        }
+      }
+
       // inicia thread para lidar com esse peer
       std::thread peer_thread(&Server::handlePeerThread, this, peer_info);
       peer_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
@@ -352,15 +380,60 @@ void Server::handlePeerThread(PeerInfo *peer_info) {
         peer_manager->sendPacket(CMD, 0, std::vector<char>(response.begin(), response.end()));
         log_info("Lista de peers enviada para o peer");
       } else if (command == "PEERS") {
+        this->electionManager->UpdateNextPeer(received_message.substr(received_message.find(' ') + 1));
 
-      } else {
+      } else if (command == "ELECTION") {
+        this->electionManager->handleCommand(received_message);
+
+      } 
+      else if(command == "LEADER_IS"){ //LEADER_IS <IP> <PORT>
+        //tira o LEADER IS do começo
+        std::string leader_info = received_message.substr(received_message.find(' ') +1);
+        std::string ip;
+        int port;
+        std::istringstream iss(leader_info);
+        iss >> ip >> port;
+        log_info("Novo líder recebido: %s:%d", ip.c_str(), port);
+        if(state == BACKUP){
+          if(leader_connection != nullptr) {
+            delete leader_connection; // libera o antigo líder
+          }
+
+          //acha na lista de peer_connections o peer que é o lider
+          for(PeerInfo *peer : peer_connections) {
+            if(peer->ip == ip && peer->listen_port == port) {
+              leader_connection = peer->network_manager; // atualiza o líder
+              log_info("Líder atualizado para: %s:%d", ip.c_str(), port);
+              std::string get_peers_msg = "GET_PEERS";
+              leader_connection->sendPacket(CMD, 0, std::vector<char>(get_peers_msg.begin(), get_peers_msg.end()));
+              packet pkt= leader_connection->receivePacket();
+              NetworkManager::printPacket(pkt);
+              //remove o "PEERS " do começo
+              std::string peers_str(pkt._payload);
+              size_t pos = peers_str.find(' ');
+              if (pos != std::string::npos) {
+                peers_str = peers_str.substr(pos + 1); // remove o "PEERS "
+              }
+              this->electionManager->UpdateNextPeer(peers_str);
+              log_info("Lista de peers atualizada do líder: %s", peers_str.c_str());
+              break;
+            }
+          }
+        }
+      }
+      else {
         log_warn("Comando desconhecido recebido do peer: %s", command.c_str());
       }
     } catch (const std::exception &e) {
+      log_info("AAAAAAAAAAAAAAA");
       log_error("Erro ao receber pacote do peer: %s", e.what());
       // se quem desconectou foi o lider, inicia uma nova eleição
       if (state != LEADER && peer_info->network_manager == leader_connection) {
+        log_info("Líder caiu, iniciando nova eleicao");
         electionManager->startElection();
+      }
+      else{
+        log_info("Nao foi o Lider que caiu");
       }
       // se ocorrer um erro, tira o peer da lista de conexões
       peer_mutex.lock();
@@ -424,4 +497,44 @@ void Server::sendPacketToPeer(std::string peer, std::string command) {
   //   }
   // }
   log_error("Peer %s não encontrado na lista de conexões", peer.c_str());
+}
+
+NetworkManager *Server::getPeerConnection(std::string peer_ip_port) {
+  std::lock_guard<std::mutex> lock(peer_mutex); // Protege o acesso à lista de peers
+  for (PeerInfo *peer_info : peer_connections) {
+    log_info("Verificando peer: %s:%d", peer_info->ip.c_str(), peer_info->listen_port);
+    if (peer_info->ip + ":" + std::to_string(peer_info->listen_port) == peer_ip_port) {
+      log_info("Conexão com o peer %s encontrada", peer_ip_port.c_str());
+      return peer_info->network_manager; // Retorna o NetworkManager do peer
+    }
+  }
+  log_error("Peer %s não encontrado na lista de conexões", peer_ip_port.c_str());
+  return nullptr; // Retorna nullptr se o peer não for encontrado
+}
+
+vector<NetworkManager*> Server::getPeers(){
+  std::lock_guard<std::mutex> lock(peer_mutex);
+  std::vector<NetworkManager*> peers;
+  for (PeerInfo *peer_info : peer_connections) {
+    peers.push_back(peer_info->network_manager);
+  }
+  return peers;
+}
+
+void Server::turnLeader() {
+  this->state = LEADER;
+  log_info("Servidor agora é o líder");
+  // envia para todos os peers que ele é o novo lider
+  std::string new_leader_msg = "LEADER_IS " + this->ip + " " + std::to_string(this->port);
+  for (NetworkManager *peer_manager : getPeers()) {
+    peer_manager->sendPacket(CMD, 0, std::vector<char>(new_leader_msg.begin(), new_leader_msg.end()));
+  }
+
+  for(ClientManager* client: clients){
+    delete client;
+  }
+
+  //TODO
+  // avisar o cliente que é novo lider e mandar ele se conectar comigo de novo
+
 }

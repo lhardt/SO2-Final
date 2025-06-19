@@ -21,14 +21,17 @@ typedef struct PeerInfo {
 
 class Server {
 public:
-  Server(State state, int running_port = PORT);
-  Server(State state, int running_port, std::string connect_ip, int connect_port);
+  Server(State state, int running_port = PORT);                                    // lider
+  Server(State state, int running_port, std::string connect_ip, int connect_port); // backup
   void run();
   std::vector<std::string> getBackupPeers();
   std::vector<std::string> getClients();
   std::string getLocalIP();
   int getPort();
   void sendPacketToPeer(std::string peer, std::string command);
+  NetworkManager *getPeerConnection(std::string peer_ip_port);
+  std::vector<NetworkManager*> getPeers();
+  void turnLeader();
 
 private:
   int port;
