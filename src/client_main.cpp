@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#define DEFAULT_LISTEN_PORT 5000
 #define SERVER_PORT 4000
 // localhost
 #define SERVER_ADDRESS "127.0.0.1"
@@ -33,6 +34,6 @@ int main(int argc, char **argv) {
   std::string server_ip = argv[2];
   std::string server_port = argv[3];
 
-  Client *client = new Client(username, server_ip, server_port);
+  Client *client = new Client(username, server_ip, server_port, DEFAULT_LISTEN_PORT);
   return 0;
 }

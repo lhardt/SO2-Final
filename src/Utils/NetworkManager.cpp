@@ -492,19 +492,23 @@ int connect_to_socket(std::string ip, int port) {
   }
 
   int retries = 0, retry_time_ms = 1000, max_retries = 150;
-  ; // 1  segundo cada, 2.5 min.
-  while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    int err = errno;
-    log_warn("Falha (errno=%d) ao conectar com [%s:%d]. Cliente irá esperar 500ms", err, ip.c_str(), port);
-    std::chrono::milliseconds sleep_time{retry_time_ms};
-    std::this_thread::sleep_for(sleep_time);
-    retries++;
-
-    if (retries > max_retries) {
-      log_warn("Excedeu o máximo de tentativas para conectar a [%s:port].", ip.c_str(), port);
-      close(sock);
-      return -1;
-    }
+  // ; // 1  segundo cada, 2.5 min.
+  // while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+  //   int err = errno;
+  //   log_warn("Falha (errno=%d) ao conectar com [%s:%d]. Cliente irá esperar 500ms", err, ip.c_str(), port);
+  //   std::chrono::milliseconds sleep_time{retry_time_ms};
+  //   std::this_thread::sleep_for(sleep_time);
+  //   retries++;
+  //   close(sock);
+  //
+  //   if (retries > max_retries) {
+  //     log_warn("Excedeu o máximo de tentativas para conectar a [%s:port].", ip.c_str(), port);
+  //     return -1;
+  //   }
+  // }
+  if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    close(sock);
+    return -1;
   }
   return sock;
 }

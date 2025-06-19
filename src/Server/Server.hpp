@@ -30,7 +30,7 @@ public:
   int getPort();
   void sendPacketToPeer(std::string peer, std::string command);
   NetworkManager *getPeerConnection(std::string peer_ip_port);
-  std::vector<NetworkManager*> getPeers();
+  std::vector<NetworkManager *> getPeers();
   void turnLeader();
 
 private:
@@ -47,8 +47,8 @@ private:
   vector<ClientManager *> clients;
 
   ClientManager *clientExists(std::string client_username);
-  ClientManager *createNewManager(State state, std::string username);
-  ClientManager *createNewBackupClientManager(std::string username, NetworkManager *push_receiver);
+  ClientManager *createNewManager(State state, std::string username, int listen_port);
+  ClientManager *createNewBackupClientManager(std::string username, NetworkManager *push_receiver, int listen_port);
   void deliverToManager(ClientManager *manager, int socket);
   void createMainSocket();
   void handlePeerThread(PeerInfo *peer_info);

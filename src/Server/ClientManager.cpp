@@ -4,9 +4,7 @@
 #include <algorithm>
 #include <unistd.h>
 
-ClientManager::ClientManager(State state, string username)
-    : file_manager(nullptr), max_devices(MAX_DEVICES),
-      username(username), state(state) {
+ClientManager::ClientManager(State state, string username, int listen_port) : listen_port(listen_port), file_manager(nullptr), max_devices(MAX_DEVICES), username(username), state(state) {
   if (username.empty()) {
     throw std::runtime_error("Username cannot be empty");
   }
@@ -74,6 +72,15 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
     }
   }
   log_info("Thread de recebimento de push finalizada");
+}
+
+void ClientManager::notify(std::string msg) {
+  std::string ip = network_manager->getIP();
+  NetworkManager *notify_manager = new NetworkManager();
+  notify_manager->connectTo(ip, listen_port);
+  notify_manager->sendPacket(CMD, 0, std::vector<char>(msg.begin(), msg.end()));
+  notify_manager->closeConnection();
+  delete notify_manager; // Libera a memória do NetworkManager
 }
 
 string ClientManager::getUsername() { return this->username; }

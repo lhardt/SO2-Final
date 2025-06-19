@@ -203,14 +203,17 @@ void Server::run() {
     std::string command = received_message.substr(0, space_pos);
 
     if (command == "CLIENT") {
-      std::string username = received_message.substr(space_pos + 1);
+      std::istringstream iss(received_message.substr(space_pos + 1));
+      std::string username;
+      int client_listen_port;
+      iss >> username >> client_listen_port;
       log_info("Cliente conectado com username: %s", username.c_str());
 
       // verifica se o cliente já existe
       ClientManager *manager = clientExists(username);
       if (!manager) {
         log_info("Criando novo ClientManager para o cliente %s", username.c_str());
-        manager = createNewManager(LEADER, username);
+        manager = createNewManager(LEADER, username, client_listen_port);
         manager->setNetworkManager(network_manager);
         // envia para os peers a informação de que um novo cliente se conectou
         peer_mutex.lock();
@@ -221,7 +224,7 @@ void Server::run() {
           // do novo NetworkManager
           NetworkManager *peer_network_manager = new NetworkManager();
           int listen_port = peer_network_manager->createAndSetupSocket();
-          peer_msg += " " + std::to_string(listen_port);
+          peer_msg += " " + std::to_string(listen_port) + " " + std::to_string(client_listen_port);
           log_info("Enviando informação de conexão do cliente %s para o peer", username.c_str());
           peer->network_manager->sendPacket(CMD, 0, std::vector<char>(peer_msg.begin(), peer_msg.end()));
           // passa o novo NetworkManager para o ClientManager
@@ -278,9 +281,9 @@ void Server::run() {
   }
 }
 
-ClientManager *Server::createNewManager(State state, string username) {
+ClientManager *Server::createNewManager(State state, string username, int listen_port) {
   // cria um novo manager e entrega o socket para ele
-  ClientManager *manager = new ClientManager(state, username);
+  ClientManager *manager = new ClientManager(state, username, listen_port);
   clients_mutex.lock();
   clients.push_back(manager); // adiciona o manager a lista de clientes
   clients_mutex.unlock();
@@ -358,13 +361,15 @@ void Server::handlePeerThread(PeerInfo *peer_info) {
         std::istringstream iss(client_info);
         std::string username;
         int porta;
-        iss >> username >> porta;
+        int client_listen_port;
+        iss >> username >> porta >> client_listen_port;
         log_info("Peer enviou informação de conexão de cliente: %s", client_info.c_str());
         if (!clientExists(username)) {
           // cria um novo ClientManager para o client que se conectou
           NetworkManager *push_receiver = new NetworkManager();
-          ClientManager *manager = createNewBackupClientManager(username, push_receiver);
+          ClientManager *manager = createNewBackupClientManager(username, push_receiver, client_listen_port);
           push_receiver->connectTo(peer_manager->getPeerIP(), porta);
+          manager->setNetworkManager(push_receiver);
           std::thread push_receiver_thread(&ClientManager::receivePushsOn, manager, push_receiver);
           push_receiver_thread.detach(); // desanexa a thread para que ela possa rodar em paralelo
         }
@@ -385,30 +390,29 @@ void Server::handlePeerThread(PeerInfo *peer_info) {
       } else if (command == "ELECTION") {
         this->electionManager->handleCommand(received_message);
 
-      } 
-      else if(command == "LEADER_IS"){ //LEADER_IS <IP> <PORT>
-        //tira o LEADER IS do começo
-        std::string leader_info = received_message.substr(received_message.find(' ') +1);
+      } else if (command == "LEADER_IS") { // LEADER_IS <IP> <PORT>
+        // tira o LEADER IS do começo
+        std::string leader_info = received_message.substr(received_message.find(' ') + 1);
         std::string ip;
         int port;
         std::istringstream iss(leader_info);
         iss >> ip >> port;
         log_info("Novo líder recebido: %s:%d", ip.c_str(), port);
-        if(state == BACKUP){
-          if(leader_connection != nullptr) {
+        if (state == BACKUP) {
+          if (leader_connection != nullptr) {
             delete leader_connection; // libera o antigo líder
           }
 
-          //acha na lista de peer_connections o peer que é o lider
-          for(PeerInfo *peer : peer_connections) {
-            if(peer->ip == ip && peer->listen_port == port) {
+          // acha na lista de peer_connections o peer que é o lider
+          for (PeerInfo *peer : peer_connections) {
+            if (peer->ip == ip && peer->listen_port == port) {
               leader_connection = peer->network_manager; // atualiza o líder
               log_info("Líder atualizado para: %s:%d", ip.c_str(), port);
               std::string get_peers_msg = "GET_PEERS";
               leader_connection->sendPacket(CMD, 0, std::vector<char>(get_peers_msg.begin(), get_peers_msg.end()));
-              packet pkt= leader_connection->receivePacket();
+              packet pkt = leader_connection->receivePacket();
               NetworkManager::printPacket(pkt);
-              //remove o "PEERS " do começo
+              // remove o "PEERS " do começo
               std::string peers_str(pkt._payload);
               size_t pos = peers_str.find(' ');
               if (pos != std::string::npos) {
@@ -420,8 +424,7 @@ void Server::handlePeerThread(PeerInfo *peer_info) {
             }
           }
         }
-      }
-      else {
+      } else {
         log_warn("Comando desconhecido recebido do peer: %s", command.c_str());
       }
     } catch (const std::exception &e) {
@@ -431,8 +434,7 @@ void Server::handlePeerThread(PeerInfo *peer_info) {
       if (state != LEADER && peer_info->network_manager == leader_connection) {
         log_info("Líder caiu, iniciando nova eleicao");
         electionManager->startElection();
-      }
-      else{
+      } else {
         log_info("Nao foi o Lider que caiu");
       }
       // se ocorrer um erro, tira o peer da lista de conexões
@@ -469,12 +471,12 @@ std::string Server::getLocalIP() {
   return std::string(ip);
 }
 
-ClientManager *Server::createNewBackupClientManager(std::string username, NetworkManager *push_receiver) {
+ClientManager *Server::createNewBackupClientManager(std::string username, NetworkManager *push_receiver, int listen_port) {
   // cria um novo socket para o manager e manda a porta
   // quando um cliente se conectar, o lider vai avisar os backups com o nome do
   // cleinte e a porta em que o ClientManagerBackup que eles vao criar tem que
   // se conectar
-  ClientManager *manager = new ClientManager(BACKUP, username);
+  ClientManager *manager = new ClientManager(BACKUP, username, listen_port);
   clients_mutex.lock();
   clients.push_back(manager); // adiciona o manager a lista de clientes
   clients_mutex.unlock();
@@ -512,9 +514,9 @@ NetworkManager *Server::getPeerConnection(std::string peer_ip_port) {
   return nullptr; // Retorna nullptr se o peer não for encontrado
 }
 
-vector<NetworkManager*> Server::getPeers(){
+vector<NetworkManager *> Server::getPeers() {
   std::lock_guard<std::mutex> lock(peer_mutex);
-  std::vector<NetworkManager*> peers;
+  std::vector<NetworkManager *> peers;
   for (PeerInfo *peer_info : peer_connections) {
     peers.push_back(peer_info->network_manager);
   }
@@ -530,11 +532,16 @@ void Server::turnLeader() {
     peer_manager->sendPacket(CMD, 0, std::vector<char>(new_leader_msg.begin(), new_leader_msg.end()));
   }
 
-  for(ClientManager* client: clients){
-    delete client;
+  // TODO
+  //  avisar o cliente que é novo lider e mandar ele se conectar comigo de novo
+  clients_mutex.lock();
+  for (int i = 0; i < clients.size(); i++) {
+    ClientManager *manager = clients[i];
+    log_info("Enviando mensagem de novo líder para o cliente: %s", manager->getUsername().c_str());
+    manager->notify(new_leader_msg);
+    // tira da lista de clientes
+    clients.erase(clients.begin() + i);
+    delete manager; // libera a memória do ClientManager
   }
-
-  //TODO
-  // avisar o cliente que é novo lider e mandar ele se conectar comigo de novo
-
+  clients_mutex.unlock();
 }

@@ -18,7 +18,7 @@ class Device;
 class ClientManager {
 
 public:
-  ClientManager(State State, string username);
+  ClientManager(State State, string username, int listen_port);
   string getUsername();
   void handle_new_connection(int socket);
   void handle_new_push(string command, Device *caller);
@@ -28,8 +28,10 @@ public:
   void add_new_backup(NetworkManager *peer_manager);
   void receivePushsOn(NetworkManager *network_manager);
   void setNetworkManager(NetworkManager *network_manager);
+  void notify(std::string msg);
 
 private:
+  int listen_port; // porta onde vai escutar novas conexoes com eventuais novos lideres
   vector<Device *> devices;
   FileManager *file_manager;
   NetworkManager *network_manager;
