@@ -168,7 +168,7 @@ void Client::handleFileThread() {
     try {
       log_info("File thread conectado na porta: %d", this->file_watcher_port);
 
-      NetworkManager file_watcher_manager("FileWatcherManager", this->server_ip, this->file_watcher_port);
+      this->file_watcher_manager = new NetworkManager("FileWatcherManager", this->server_ip, this->file_watcher_port);
 
       int inotifyFd = inotify_init1(IN_NONBLOCK);
       if (inotifyFd < 0) {
@@ -208,14 +208,14 @@ void Client::handleFileThread() {
               log_info("Arquivo modificado: %s", file_name.c_str());
               std::string command = "WRITE " + file_name;
               watcher_push_lock.lock();
-              file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
-              file_watcher_manager.sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
+              file_watcher_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+              file_watcher_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE, *sync_dir_file_manager);
               watcher_push_lock.unlock();
 
             } else if (event->mask & IN_DELETE) {
               log_info("Arquivo removido: %s", filepath.c_str());
               std::string command = "DELETE " + std::string(event->name);
-              file_watcher_manager.sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+              file_watcher_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
             }
           }
 
@@ -243,11 +243,11 @@ void Client::handlePushThread() {
       }
       log_info("Push thread conectado na porta: %d", this->file_watcher_port);
 
-      NetworkManager push_receiver(sock);
+      this->push_manager = new NetworkManager(sock);
 
       while (true && !stop_requested) {
         log_info("Aguardando push do servidor...");
-        packet pkt = push_receiver.receivePacket();
+        packet pkt = push_manager->receivePacket();
         std::istringstream payload_stream(pkt._payload);
         std::string command;
         payload_stream >> command;
@@ -262,7 +262,7 @@ void Client::handlePushThread() {
           log_info("Recebendo arquivo: %s", file_name.c_str());
           watcher_push_lock.lock();
           while (!stop && !stop_requested) {
-            packet pkt_received = push_receiver.receivePacket();
+            packet pkt_received = push_manager->receivePacket();
             std::string pkt_string = std::string(pkt_received._payload, pkt_received.length);
 
             if (pkt_string == "END_OF_FILE") {
@@ -295,13 +295,15 @@ void Client::handlePushThread() {
   log_info("Push thread finalizada");
 }
 
-void Client::handleListenthread(NetworkManager *listen_network_manager) {
-  listen_network_manager->acceptConnection();
+void Client::handleListenthread() {
+  this->listen_thread_network_manager->acceptConnection();
   while (true) {
     try {
-      packet pkt = listen_network_manager->receivePacket();
+      std::cout << "AEHOOO\n";
+      packet pkt = listen_thread_network_manager->receivePacket();
       NetworkManager::printPacket(pkt);
-      istringstream iss(pkt._payload);
+      std::string payload_msg(pkt._payload, pkt.length);
+      istringstream iss(payload_msg);
       std::string command;
       iss >> command;
       if (command == "LEADER_IS") {
@@ -310,21 +312,11 @@ void Client::handleListenthread(NetworkManager *listen_network_manager) {
         std::string leader_port;
         iss >> leader_ip >> leader_port;
 
-        sem_wait(&this->cleanup_semaphore); // espera no semaforo
-        log_info("Novo líder encontrado: %s:%s", leader_ip.c_str(), leader_port.c_str());
-
-        this->command_manager = new NetworkManager("command_manager");
-        command_manager->connectTo(leader_ip, std::stoi(leader_port));
-        connectToServer(command_manager);
-        this->io_thread = std::thread(g_handleIoThread, this);
-        this->network_thread = std::thread(g_handlePushThread, this);
-        this->file_thread = std::thread(g_handleFileThread, this);
-
-        io_thread.join();
-        network_thread.join();
-        file_thread.join();
+        this->server_ip = leader_ip;
+        this->server_port = leader_port;
 
         sem_post(&this->cleanup_semaphore); // libera o semaforo
+        log_info("terminei");
       }
     } catch (const std::runtime_error &e) {
       return;
@@ -332,10 +324,13 @@ void Client::handleListenthread(NetworkManager *listen_network_manager) {
   }
 }
 
-void Client::connectToServer(NetworkManager *command_network_manager) {
+void Client::connectToServer() {
+
+  this->command_manager = new NetworkManager("CommandManager", this->server_ip, std::stoi(this->server_port));
   std::string command = "CLIENT " + client_name + " " + std::to_string(this->listen_port);
 
   command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
+  log_info("Enviando comando de conexão para o servidor: %s", command.c_str());
 
   // recebe o primeiro pacote do server
   packet pkt = command_manager->receivePacket();
@@ -351,16 +346,21 @@ void Client::connectToServer(NetworkManager *command_network_manager) {
   std::string port_str2 = payload2.substr(payload2.find(" ") + 1);
   int port2 = std::stoi(port_str2);
   this->file_watcher_port = port2;
+  log_info("Conectado ao servidor com push_port: %d e file_watcher_port: %d", this->push_port, this->file_watcher_port);
 }
 
 Client::Client(std::string _client_name, std::string _server_ip, std::string _server_port, int listen_port) : client_name(_client_name), server_ip(_server_ip), server_port(_server_port), listen_port(listen_port) {
   int server_port_int = std::stoi(server_port);
 
-  NetworkManager *listen_thread_network_manager = new NetworkManager("listen_thread_network_manager");
+  this->listen_thread_network_manager = new NetworkManager("listen_thread_network_manager"); // problema aqui talvez?
   this->listen_port = listen_thread_network_manager->createAndSetupSocket();
 
   // é o socket de commandos, tem que passar para a thread de IO
-  this->command_manager = new NetworkManager("CommandManager", server_ip, server_port_int);
+  {
+    std::lock_guard<std::mutex> lock(command_manager_lock);
+
+    this->command_manager = new NetworkManager("CommandManager", server_ip, server_port_int);
+  }
   std::string command = "CLIENT " + client_name + " " + std::to_string(this->listen_port);
 
   command_manager->sendPacket(CMD, 1, std::vector<char>(command.begin(), command.end()));
@@ -383,19 +383,55 @@ Client::Client(std::string _client_name, std::string _server_ip, std::string _se
   this->sync_dir_file_manager = new FileManager("sync_dir");
   this->curr_directory_file_manager = new FileManager("./");
 
-  sem_init(&this->cleanup_semaphore, 0, 0);
+  sem_init(&this->cleanup_semaphore, 0, 1);
+}
 
+void Client::run() {
   // inicia a listen_thread
-  std::thread listen_thread(&Client::handleListenthread, this, listen_thread_network_manager);
-  listen_thread.detach();
-  this->io_thread = std::thread(g_handleIoThread, this);
-  this->network_thread = std::thread(g_handlePushThread, this);
-  this->file_thread = std::thread(g_handleFileThread, this);
+  this->listen_thread = new std::thread(&Client::handleListenthread, this);
+  while (true) {
+    sem_wait(&this->cleanup_semaphore); // espera o semáforo ser liberado
+    connectToServer();
+    this->io_thread = new std::thread(g_handleIoThread, this);
+    this->network_thread = new std::thread(g_handlePushThread, this);
+    this->file_thread = new std::thread(g_handleFileThread, this);
 
-  io_thread.join();
-  network_thread.join();
-  file_thread.join();
-  log_info("Client finalizado");
-  // notifica que o clieanup esta pronto
-  sem_post(&this->cleanup_semaphore);
+    log_info("Client iniciado com sucesso, aguardando comandos...");
+    io_thread->join();
+    network_thread->join();
+    file_thread->join();
+    stop_requested = false;
+
+    delete this->command_manager;
+    this->command_manager = nullptr;
+    delete this->file_watcher_manager;
+    this->file_watcher_manager = nullptr;
+    delete this->push_manager;
+    this->push_manager = nullptr;
+
+    delete this->io_thread;
+    this->io_thread = nullptr;
+    delete this->network_thread;
+    this->network_thread = nullptr;
+    delete this->file_thread;
+    this->file_thread = nullptr;
+    log_info("Client finalizado");
+  }
+}
+
+Client::~Client() {
+  if (listen_thread) {
+    std::cout << "Deletando listen_thread" << std::endl;
+    listen_thread->join();
+    delete listen_thread;
+    listen_thread = nullptr;
+  } else {
+    std::cout << "listen_thread já foi deletado" << std::endl;
+  }
+  delete listen_thread_network_manager;
+  listen_thread_network_manager = nullptr;
+  delete sync_dir_file_manager;
+  sync_dir_file_manager = nullptr;
+  delete curr_directory_file_manager;
+  curr_directory_file_manager = nullptr;
 }

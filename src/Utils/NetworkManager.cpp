@@ -430,7 +430,7 @@ int NetworkManager::getPort() {
   return ntohs(addr.sin_port);
 }
 
-int NetworkManager::connectTo(const std::string &ip, int port) {
+int NetworkManager::connectTo(std::string ip, int port) {
   if (socket_fd != -1) {
     throw std::runtime_error("Socket already initialized");
   }
@@ -455,7 +455,8 @@ int NetworkManager::connectTo(const std::string &ip, int port) {
     throw std::runtime_error("Failed to connect to server");
   }
 
-  log_info("Connected to server at %s:%d", ip.c_str(), port);
+  std::cout << "CONECTANDO\n";
+  // log_info("Connected to server at %s:%d", ip.c_str(), port);
   return 1;
 }
 

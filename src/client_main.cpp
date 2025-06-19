@@ -35,5 +35,7 @@ int main(int argc, char **argv) {
   std::string server_port = argv[3];
 
   Client *client = new Client(username, server_ip, server_port, DEFAULT_LISTEN_PORT);
+  client->run();
+  delete client;
   return 0;
 }

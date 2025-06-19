@@ -55,7 +55,7 @@ public:
   std::string getPeerIP();
   int getPeerPort();
   int getPort();
-  int connectTo(const std::string &ip, int port);
+  int connectTo(std::string ip, int port);
   static void printPacket(packet &pkt);
 
 private:
