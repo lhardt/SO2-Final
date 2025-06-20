@@ -1,14 +1,14 @@
 #pragma once
-#include "ClientManager.hpp"
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
+#include "ClientManager.hpp"
 #include <atomic>
+#include <condition_variable>
 #include <iostream>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
-#include <condition_variable>
 
 class ClientManager;
 
@@ -44,5 +44,6 @@ public:
   void sendFileTo(std::string file_path);  // no socket de comando
   void sendPushTo(std::string &file_path); // no socket de push
   void buildFile(std::string &file_name);
+  NetworkManager *getNetworkManager();
   ~Device();
 };

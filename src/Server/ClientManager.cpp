@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <unistd.h>
 
-ClientManager::ClientManager(State state, string username, int listen_port) : listen_port(listen_port), file_manager(nullptr), max_devices(MAX_DEVICES), username(username), state(state) {
+ClientManager::ClientManager(State state, string username) : file_manager(nullptr), max_devices(MAX_DEVICES), username(username), state(state) {
   if (username.empty()) {
     throw std::runtime_error("Username cannot be empty");
   }
@@ -75,12 +75,22 @@ void ClientManager::receivePushsOn(NetworkManager *network_manager) {
 }
 
 void ClientManager::notify(std::string msg) {
+  log_info("listen_adresses:");
+  for (const auto &address : listen_adreesses) {
+    log_info(" - %s", address.c_str());
+  }
+  // notifica todos os dipositivos conectados
   std::string ip = network_manager->getIP();
-  NetworkManager *notify_manager = new NetworkManager();
-  notify_manager->connectTo(ip, listen_port);
-  notify_manager->sendPacket(CMD, 0, std::vector<char>(msg.begin(), msg.end()));
-  notify_manager->closeConnection();
-  delete notify_manager; // Libera a memória do NetworkManager
+  for (int i = 0; i < listen_adreesses.size(); i++) {
+    NetworkManager *notify_manager = new NetworkManager();
+    log_info("Enviando notificação para o %s", listen_adreesses[i].c_str());
+    std::string ip = listen_adreesses[i].substr(0, listen_adreesses[i].find(':'));
+    int port = std::stoi(listen_adreesses[i].substr(listen_adreesses[i].find(':') + 1));
+    notify_manager->connectTo(ip, port);
+    notify_manager->sendPacket(CMD, 0, std::vector<char>(msg.begin(), msg.end()));
+    notify_manager->closeConnection();
+    delete notify_manager; // Libera a memória do NetworkManager
+  }
 }
 
 string ClientManager::getUsername() { return this->username; }
@@ -137,4 +147,10 @@ void ClientManager::setNetworkManager(NetworkManager *network_manager) {
   this->network_manager = network_manager;
   log_info("NetworkManager configurado com IP: %s e porta: %d",
            network_manager->getIP().c_str(), network_manager->getPort());
+}
+
+void ClientManager::add_listen_adress(std::string listen_adress) {
+  std::lock_guard<std::mutex> lock(device_mutex);
+  listen_adreesses.push_back(listen_adress);
+  log_info("Novo endereço de escuta adicionado: %s", listen_adress.c_str());
 }

@@ -57,9 +57,11 @@ public:
   int getPort();
   int connectTo(std::string ip, int port);
   static void printPacket(packet &pkt);
+  static std::string getLocalIp();
 
 private:
   int socket_fd;
+  int listen_socket_fd;
   std::string name;
   bool isPacketValid(const packet &pkt);
   packet deserializeHeader(const char *header_buffer);

@@ -47,8 +47,8 @@ private:
   vector<ClientManager *> clients;
 
   ClientManager *clientExists(std::string client_username);
-  ClientManager *createNewManager(State state, std::string username, int listen_port);
-  ClientManager *createNewBackupClientManager(std::string username, NetworkManager *push_receiver, int listen_port);
+  ClientManager *createNewManager(State state, std::string username);
+  ClientManager *createNewBackupClientManager(std::string username, NetworkManager *push_receiver);
   void deliverToManager(ClientManager *manager, int socket);
   void createMainSocket();
   void handlePeerThread(PeerInfo *peer_info);

@@ -331,6 +331,8 @@ int NetworkManager::createAndSetupSocket() {
   int port = ntohs(addr.sin_port);
   log_info("Socket de escuta criado na porta: %d", port);
 
+  this->listen_socket_fd = listen_socket_fd; // Armazena o socket de escuta
+
   // Armazena o socket de escuta no atributo do objeto
   this->socket_fd = listen_socket_fd;
 
@@ -339,23 +341,22 @@ int NetworkManager::createAndSetupSocket() {
 }
 
 void NetworkManager::acceptConnection() {
-  if (socket_fd == -1) {
+  if (listen_socket_fd == -1) {
     throw std::runtime_error("Socket não inicializado para aceitar conexões");
   }
   // Obtém a porta do socket
   sockaddr_in addr;
   socklen_t addrlen = sizeof(addr);
-  if (getsockname(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+  if (getsockname(listen_socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
     throw std::runtime_error("Falha ao obter informações do socket");
   }
   int port = ntohs(addr.sin_port);
 
-  log_info("Esperando conexão na porta: %d", port);
-
   sockaddr_in client_addr;
   socklen_t client_addrlen = sizeof(client_addr);
+  log_info("Aguardando conexão de cliente na porta: %d", port);
   int client_socket_fd =
-      accept(socket_fd, (struct sockaddr *)&client_addr, &client_addrlen);
+      accept(listen_socket_fd, (struct sockaddr *)&client_addr, &client_addrlen);
   if (client_socket_fd == -1) {
     throw std::runtime_error("Falha ao aceitar conexão do cliente");
   }
@@ -363,7 +364,7 @@ void NetworkManager::acceptConnection() {
   log_info("Conexão aceita de cliente!");
 
   // Fecha o socket de escuta
-  close(socket_fd);
+  // close(socket_fd);
 
   // Armazena o socket do cliente no atributo do objeto
   this->socket_fd = client_socket_fd;
@@ -526,4 +527,36 @@ int NetworkManager::getPeerPort() {
   }
 
   return ntohs(addr.sin_port);
+}
+
+std::string NetworkManager::getLocalIp() {
+  int sock = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock < 0) {
+    throw std::runtime_error("Failed to create UDP socket");
+  }
+
+  sockaddr_in remote_addr;
+  std::memset(&remote_addr, 0, sizeof(remote_addr));
+  remote_addr.sin_family = AF_INET;
+  remote_addr.sin_port = htons(53); // Porta DNS
+  inet_pton(AF_INET, "8.8.8.8", &remote_addr.sin_addr);
+
+  // Não precisa de conexão real, só para atribuir IP local
+  connect(sock, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+
+  sockaddr_in local_addr;
+  socklen_t addr_len = sizeof(local_addr);
+  if (getsockname(sock, (struct sockaddr *)&local_addr, &addr_len) == -1) {
+    close(sock);
+    throw std::runtime_error("Failed to get local socket name");
+  }
+
+  char ip_str[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &local_addr.sin_addr, ip_str, sizeof(ip_str)) == nullptr) {
+    close(sock);
+    throw std::runtime_error("Failed to convert local IP to string");
+  }
+
+  close(sock);
+  return std::string(ip_str);
 }

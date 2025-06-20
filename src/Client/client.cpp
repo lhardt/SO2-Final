@@ -296,9 +296,11 @@ void Client::handlePushThread() {
 }
 
 void Client::handleListenthread() {
-  this->listen_thread_network_manager->acceptConnection();
   while (true) {
     try {
+      log_info("AGUARDANDO conexão na porta: %d", this->listen_port);
+      this->listen_thread_network_manager->acceptConnection();
+      log_info("CONEXAO RECEBIDA");
       std::cout << "AEHOOO\n";
       packet pkt = listen_thread_network_manager->receivePacket();
       NetworkManager::printPacket(pkt);
@@ -315,8 +317,9 @@ void Client::handleListenthread() {
         this->server_ip = leader_ip;
         this->server_port = leader_port;
 
-        sem_post(&this->cleanup_semaphore); // libera o semaforo
+        listen_thread_network_manager->closeConnection();
         log_info("terminei");
+        sem_post(&this->cleanup_semaphore); // libera o semaforo
       }
     } catch (const std::runtime_error &e) {
       return;
@@ -353,6 +356,7 @@ Client::Client(std::string _client_name, std::string _server_ip, std::string _se
   int server_port_int = std::stoi(server_port);
 
   this->listen_thread_network_manager = new NetworkManager("listen_thread_network_manager"); // problema aqui talvez?
+  log_info("Criando NetworkManager para listen_thread com IP: %s, PORT: %d", NetworkManager::getLocalIp().c_str(), this->listen_port);
   this->listen_port = listen_thread_network_manager->createAndSetupSocket();
 
   // é o socket de commandos, tem que passar para a thread de IO
@@ -390,6 +394,7 @@ void Client::run() {
   // inicia a listen_thread
   this->listen_thread = new std::thread(&Client::handleListenthread, this);
   while (true) {
+    log_info("Esperando semaforo");
     sem_wait(&this->cleanup_semaphore); // espera o semáforo ser liberado
     connectToServer();
     this->io_thread = new std::thread(g_handleIoThread, this);

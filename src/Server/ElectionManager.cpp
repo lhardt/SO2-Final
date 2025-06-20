@@ -82,11 +82,7 @@ void ElectionManager::handleCommand(std::string &command) {
   iss >> ip >> port;
   if (ip == server->getLocalIP() && port == server->getPort()) {
     log_info("NOVO LIDER ELEITO");
-    // manda para todos os peers que ele é o novo lider
-    std::string new_leader_msg = "LEADER_IS " + server->getLocalIP() + " " + std::to_string(server->getPort());
-    for (NetworkManager *peer_manager : server->getPeers()) {
-      peer_manager->sendPacket(CMD, 0, std::vector<char>(new_leader_msg.begin(), new_leader_msg.end()));
-    }
+    server->turnLeader();
   } else {
     if (port > server->getPort()) {
       // reenvio a eleicao para o next_peer
