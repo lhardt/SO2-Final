@@ -2,9 +2,9 @@
 #include "../Utils/FileManager.hpp"
 #include "../Utils/NetworkManager.hpp"
 #include "../Utils/State.hpp"
-#include "./Server.hpp"
 #include "Device.hpp"
 #include <iostream>
+#include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
@@ -21,14 +21,18 @@ public:
   ClientManager(State State, string username);
   string getUsername();
   void handle_new_connection(int socket);
-  void handle_new_push(packet pkt, Device *caller);
+  void handle_new_push(packet& pkt, Device *caller);
   void removeDevice(Device *device);
   std::string getIp();
   int getPort();
   void add_new_backup(NetworkManager *peer_manager);
   void receivePushsOn(NetworkManager *network_manager);
+  void setNetworkManager(NetworkManager *network_manager);
+  void notifyNewLeader(std::string msg);
+  void add_listen_adress(std::string listen_adress);
 
 private:
+  std::vector<std::string> listen_adreesses;
   vector<Device *> devices;
   FileManager *file_manager = nullptr;
   NetworkManager *network_manager = nullptr;

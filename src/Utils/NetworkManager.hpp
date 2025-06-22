@@ -17,9 +17,10 @@ enum PacketType {
   t_GET_CLIENTS,
   t_CLIENTS,
   t_PEER,
-  t_WHO_IS_LEADER,
   t_LEADER,
+  t_GET_LEADER,
   t_CLIENT_CONNECTION,
+  t_DEVICE_CONNECTION, // ???
   t_FILE_NOT_FOUND,
   t_FILE_FOUND,
   t_UPLOAD,
@@ -27,6 +28,9 @@ enum PacketType {
   t_LIST,
   t_END_OF_FILE,
   t_ERROR,
+  t_ELECTION, 
+  t_PEERS, 
+  t_GET_PEERS,
 };
 
 typedef struct packet {
@@ -53,7 +57,7 @@ class NetworkManager {
 public:
   NetworkManager(const std::string &name = "");
   NetworkManager(int socket_fd, const std::string &name = "");
-  
+
   /** Creates a socket and tries to connect automatically to a remote. */
   NetworkManager(std::string name, std::string ip, int port);
 
@@ -71,12 +75,16 @@ public:
   void acceptConnection();
   void closeSocket();
   std::string getIP();
+  std::string getPeerIP();
+  int getPeerPort();
   int getPort();
-  void connectTo(const std::string &ip, int port);
+  int connectTo(std::string ip, int port);
   static void printPacket(packet &pkt);
+  static std::string getLocalIp();
 
 private:
   int socket_fd;
+  int listen_socket_fd;
   std::string name;
   bool isPacketValid(const packet &pkt);
   packet deserializeHeader(const char *header_buffer);

@@ -1,12 +1,12 @@
 #include "Device.hpp"
 #include "../Utils/FileManager.hpp"
 #include "../Utils/logger.hpp"
+#include <condition_variable>
 #include <cstring>
 #include <exception>
 #include <filesystem>
 #include <sstream> // Add this include for std::istringstream
 #include <string>
-#include <condition_variable>
 
 Device::Device(int command_socket_fd, ClientManager *client_manager, FileManager *file_manager)
     : stop_requested(false), send_push(false), client_manager(client_manager), command_thread(nullptr),
@@ -34,15 +34,13 @@ Device::~Device() {
   delete file_watcher_receiver;
 }
 
-
-
 void Device::commandThread() { // thread se comporta recebendo comandos do
                                // cliente e enviando dados para ele
   try {
     log_info("Iniciando thread de comandos IO");
     while (!stop_requested) {
       packet pkt = command_manager->receivePacket();
-      
+
       std::istringstream payload_stream(pkt._payload);
 
       log_info("Comando recebido: %d", pkt.type);
@@ -72,7 +70,7 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
         if (fim.empty()) {
           fim = "NAO HÁ ARQUIVOS";
         }
-        command_manager->sendPacket(t_DATA, 1, vector<char>(fim.begin(), fim.end()));
+        command_manager->sendPacket(t_DATA, 1, fim);
         command_manager->sendPacket(t_END_OF_FILE, 1);
       } else {
         log_error("Comando desconhecido recebido do cliente: %d", pkt.type);
@@ -83,40 +81,33 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
     stop_requested = true;
   }
   log_info("Thread de comandos IO finalizada");
-  //Liberando PushThread para ser encerrada
+  // Liberando PushThread para ser encerrada
   push_cv.notify_one();
 }
 
-
-
-void Device::pushThread() { 
+void Device::pushThread() {
   try {
     log_info("Iniciando thread de push");
     while (!stop_requested) {
 
-        std::unique_lock<std::mutex> lock(push_mutex);
-        push_cv.wait(lock, [this] { return this->send_push.load() || stop_requested; });
+      std::unique_lock<std::mutex> lock(push_mutex);
+      push_cv.wait(lock, [this] { return this->send_push.load() || stop_requested; });
 
-        if (stop_requested) break;
-        
-        log_info("Comando de push recebido", this->push_command.c_str());
-        std::istringstream payload_stream(this->push_command);
+      if (stop_requested) break;
 
-        if (this->push_type == t_WRITE) {
-          std::string file_name;
-          payload_stream >> file_name;
+      if (this->push_type == t_WRITE) {
           push_manager->sendPacket(t_WRITE, 1, push_command);
-          push_manager->sendFileInChunks(file_name, MAX_PACKET_SIZE, *file_manager);
-        } else if (this->push_type == t_DELETE) {
-          push_manager->sendPacket(t_DELETE, 1, push_command);
-        }
+          push_manager->sendFileInChunks(push_command, MAX_PACKET_SIZE, *file_manager);
 
-        log_info("Push enviado");
+      } else if (this->push_type == t_DELETE) {
+        push_manager->sendPacket(push_type, 1, push_command);
+      }
 
-        this->send_push = false;
-        // TERMINA LOCK
-        push_lock.unlock();
-      
+      log_info("Push enviado");
+
+      this->send_push = false;
+      // TERMINA LOCK
+      push_lock.unlock();
     }
   } catch (const std::runtime_error &e) {
     stop_requested = true;
@@ -124,8 +115,6 @@ void Device::pushThread() {
   }
   log_info("Thread de push finalizada");
 }
-
-
 
 void Device::fileWatcherThread() {
   log_info("Iniciando thread de file watcher");
@@ -200,8 +189,6 @@ void Device::start() {
   client_manager->removeDevice(this);
 }
 
-
-
 void Device::stop() {
   stop_requested = true;
 
@@ -260,7 +247,7 @@ void Device::buildFile(std::string &file_name) {
     packet pkt_received = file_watcher_receiver->receivePacket();
     log_info("Recebido do dispositivo pacote de SEQ: %d", pkt_received.seqn);
 
-    if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
+    if (pkt_received.type == t_END_OF_FILE) {
       stop = true;
       break;
     }
@@ -268,4 +255,8 @@ void Device::buildFile(std::string &file_name) {
     std::vector<char> data(pkt_received._payload, pkt_received._payload + pkt_received.length);
     file_manager->writeFile(file_name, data);
   }
+}
+
+NetworkManager *Device::getNetworkManager() {
+  return command_manager;
 }

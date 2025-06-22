@@ -2,7 +2,6 @@
 #include "FileManager.hpp"
 #include "logger.hpp"
 #include <arpa/inet.h>
-#include <thread>
 #include <cstddef>
 #include <cstring>
 #include <fstream>
@@ -11,11 +10,11 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 
 NetworkManager::NetworkManager(const std::string &name)
     : socket_fd(-1), name(name) {}
-
 
 NetworkManager::NetworkManager(int socket_fd, const std::string &name)
     : socket_fd(socket_fd), name(name) {
@@ -24,12 +23,13 @@ NetworkManager::NetworkManager(int socket_fd, const std::string &name)
   }
 }
 
-NetworkManager::NetworkManager(std::string name, std::string ip, int port){
+NetworkManager::NetworkManager(std::string name, std::string ip, int port) {
   int sock = connect_to_socket(ip, port);
   this->socket_fd = sock;
   this->name = name;
-  
-  if( sock <= 0) throw std::runtime_error("Socket wasn't created succesfully!");
+
+  if (sock <= 0)
+    throw std::runtime_error("Socket wasn't created succesfully!");
 
   log_info("Network Manager [%s] conectou a [%s : %d]!", name.c_str(), ip.c_str(), port);
 }
@@ -58,7 +58,6 @@ void NetworkManager::sendPacket(packet *p) {
     total_sent += sent;
   }
 };
-
 
 void NetworkManager::sendPacket(uint16_t type, uint16_t seqn) {
   sendPacket(type, seqn, "xxx");
@@ -179,6 +178,7 @@ void NetworkManager::receivePayload(packet &pkt) {
           pkt.length - total_payload_received, 0);
       if (received == -1) {
         delete[] pkt._payload; // Clean up allocated memory
+	pkt._payload = nullptr;
         throw std::runtime_error("Failed to receive packet payload\n");
       }
       total_payload_received += received;
@@ -337,6 +337,8 @@ int NetworkManager::createAndSetupSocket() {
   int port = ntohs(addr.sin_port);
   log_info("Socket de escuta criado na porta: %d", port);
 
+  this->listen_socket_fd = listen_socket_fd; // Armazena o socket de escuta
+
   // Armazena o socket de escuta no atributo do objeto
   this->socket_fd = listen_socket_fd;
 
@@ -345,23 +347,22 @@ int NetworkManager::createAndSetupSocket() {
 }
 
 void NetworkManager::acceptConnection() {
-  if (socket_fd == -1) {
+  if (listen_socket_fd == -1) {
     throw std::runtime_error("Socket não inicializado para aceitar conexões");
   }
   // Obtém a porta do socket
   sockaddr_in addr;
   socklen_t addrlen = sizeof(addr);
-  if (getsockname(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+  if (getsockname(listen_socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
     throw std::runtime_error("Falha ao obter informações do socket");
   }
   int port = ntohs(addr.sin_port);
 
-  log_info("Esperando conexão na porta: %d", port);
-
   sockaddr_in client_addr;
   socklen_t client_addrlen = sizeof(client_addr);
+  log_info("Aguardando conexão de cliente na porta: %d", port);
   int client_socket_fd =
-      accept(socket_fd, (struct sockaddr *)&client_addr, &client_addrlen);
+      accept(listen_socket_fd, (struct sockaddr *)&client_addr, &client_addrlen);
   if (client_socket_fd == -1) {
     throw std::runtime_error("Falha ao aceitar conexão do cliente");
   }
@@ -369,7 +370,7 @@ void NetworkManager::acceptConnection() {
   log_info("Conexão aceita de cliente!");
 
   // Fecha o socket de escuta
-  close(socket_fd);
+  // close(socket_fd);
 
   // Armazena o socket do cliente no atributo do objeto
   this->socket_fd = client_socket_fd;
@@ -382,6 +383,30 @@ void NetworkManager::closeConnection() {
     socket_fd = -1;
     log_info("%s Fechou conexão", name.c_str());
   }
+}
+
+std::string NetworkManager::getPeerIP() {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket not initialized");
+  }
+
+  sockaddr_in addr;
+  socklen_t addrlen = sizeof(addr);
+  if (getpeername(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+    throw std::runtime_error("Failed to get peer name");
+  }
+
+  char ip_str[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &addr.sin_addr, ip_str, sizeof(ip_str)) == nullptr) {
+    throw std::runtime_error("Failed to convert IP address to string");
+  }
+
+  if (std::string(ip_str) == "127.0.0.1") {
+    std::cout << "USANDO IP LOCAL " << NetworkManager::getLocalIp() << std::endl;
+    return NetworkManager::getLocalIp();
+  }
+
+  return std::string(ip_str);
 }
 
 std::string NetworkManager::getIP() {
@@ -417,7 +442,7 @@ int NetworkManager::getPort() {
   return ntohs(addr.sin_port);
 }
 
-void NetworkManager::connectTo(const std::string &ip, int port) {
+int NetworkManager::connectTo(std::string ip, int port) {
   if (socket_fd != -1) {
     throw std::runtime_error("Socket already initialized");
   }
@@ -442,7 +467,9 @@ void NetworkManager::connectTo(const std::string &ip, int port) {
     throw std::runtime_error("Failed to connect to server");
   }
 
-  log_info("Connected to server at %s:%d", ip.c_str(), port);
+  std::cout << "CONECTANDO\n";
+  // log_info("Connected to server at %s:%d", ip.c_str(), port);
+  return 1;
 }
 
 void NetworkManager::printPacket(packet &pkt) {
@@ -477,33 +504,84 @@ int connect_to_socket(std::string ip, int port) {
     return -1;
   }
 
-  int retries = 0, retry_time_ms = 1000, max_retries = 150;; // 1  segundo cada, 2.5 min.
-  while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    int err = errno;
-    log_warn("Falha (errno=%d) ao conectar com [%s:%d]. Cliente irá esperar 500ms", err, ip.c_str(), port);
-    std::chrono::milliseconds sleep_time{retry_time_ms};
-    std::this_thread::sleep_for(sleep_time);
-    retries++;
-
-    if(retries > max_retries){
-      log_warn("Excedeu o máximo de tentativas para conectar a [%s:port].", ip.c_str(), port);
-      close(sock);
-      return -1;
-    }
+  // int retries = 0, retry_time_ms = 1000, max_retries = 150;
+  // ; // 1  segundo cada, 2.5 min.
+  // while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+  //   int err = errno;
+  //   log_warn("Falha (errno=%d) ao conectar com [%s:%d]. Cliente irá esperar 500ms", err, ip.c_str(), port);
+  //   std::chrono::milliseconds sleep_time{retry_time_ms};
+  //   std::this_thread::sleep_for(sleep_time);
+  //   retries++;
+  //   close(sock);
+  //
+  //   if (retries > max_retries) {
+  //     log_warn("Excedeu o máximo de tentativas para conectar a [%s:port].", ip.c_str(), port);
+  //     return -1;
+  //   }
+  // }
+  if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    close(sock);
+    return -1;
   }
   return sock;
 }
 
+int NetworkManager::getPeerPort() {
+  if (socket_fd == -1) {
+    throw std::runtime_error("Socket not initialized");
+  }
 
-std::vector<std::string> list_to_packet_content(std::string content){
+  sockaddr_in addr;
+  socklen_t addrlen = sizeof(addr);
+  if (getpeername(socket_fd, (struct sockaddr *)&addr, &addrlen) == -1) {
+    throw std::runtime_error("Failed to get peer name");
+  }
+
+  return ntohs(addr.sin_port);
+}
+
+std::string NetworkManager::getLocalIp() {
+  int sock = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock < 0) {
+    throw std::runtime_error("Failed to create UDP socket");
+  }
+
+  sockaddr_in remote_addr;
+  std::memset(&remote_addr, 0, sizeof(remote_addr));
+  remote_addr.sin_family = AF_INET;
+  remote_addr.sin_port = htons(53); // Porta DNS
+  inet_pton(AF_INET, "8.8.8.8", &remote_addr.sin_addr);
+
+  // Não precisa de conexão real, só para atribuir IP local
+  connect(sock, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+
+  sockaddr_in local_addr;
+  socklen_t addr_len = sizeof(local_addr);
+  if (getsockname(sock, (struct sockaddr *)&local_addr, &addr_len) == -1) {
+    close(sock);
+    throw std::runtime_error("Failed to get local socket name");
+  }
+
+  char ip_str[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &local_addr.sin_addr, ip_str, sizeof(ip_str)) == nullptr) {
+    close(sock);
+    throw std::runtime_error("Failed to convert local IP to string");
+  }
+
+  close(sock);
+  return std::string(ip_str);
+}
+
+std::vector<std::string> packet_content_to_list(std::string content){
   std::vector<std::string> result;
   int left = 1;
   for(int i = 1; i < content.size(); ++i){
     if(content[i] == ';'){
        result.push_back( content.substr(left, i) );
-       left = i;
+       left = i+1;
     } 
   }
+  // after the last ";" there will be just "]";
   return result;
 }
 std::string list_to_packet_content(std::vector<std::string> vec){

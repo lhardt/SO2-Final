@@ -19,7 +19,8 @@ int main(int argc, char *argv[]) {
   } else if (argc == 5) {
     server = new Server(BACKUP, std::stoi(argv[1]), argv[2], std::stoi(argv[3]));
   } else {
-    std::cerr << "Usage: " << argv[0] << " [<ip> <port>] [-b]\n";
+    std::cerr << "Usage for leader: " << argv[0] << " <port_to_open> -l \n";
+    std::cerr << "      for backup: " << argv[0] << " <port_to_open> <main_server_ip> <main_server_port> -b\n";
     return EXIT_FAILURE;
   }
   signal(SIGPIPE, SIG_IGN);
