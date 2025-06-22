@@ -55,9 +55,10 @@ Server::Server(State state, int running_port, std::string ip, int port) {
   leader_connection->sendPacket(t_PEER, 1, this->ip + ":" + std::to_string(this->port));
   packet pkt = leader_connection->receivePacket();
   NetworkManager::printPacket(pkt);
-  leader_connection->sendPacket(t_GET_CLIENTS, 0); // TODO: test if t_CLIENTS
+  leader_connection->sendPacket(t_GET_CLIENTS, 0); 
+
   packet pkt2 = leader_connection->receivePacket();
-  log_info("Recebendo lista de clientes do líder");
+  log_info("Recebendo lista de clientes do líder. (code=%d). ", pkt2.type);
   NetworkManager::printPacket(pkt2);
 
   std::string peers_str(pkt._payload);
@@ -375,7 +376,7 @@ void Server::handlePeerThread(PeerInfo *peer_info) {
         log_info("Peer enviou informação de conexão de dispositivo: %s", received_message.c_str());
         if (ClientManager *client = clientExists(username)) {
           client->add_listen_adress(device_listen_adress); // adiciona o novo dispositivo ao ClientManager
-          log_info("Dispositivo adicionado ao ClientManager do cliente %s", received_message.c_str());
+          log_info("Dispositivo adicionado ao ClientManager do cliente %s", username.c_str());
         } else {
           log_warn("Cliente %s não encontrado, não foi possível adicionar o dispositivo", username.c_str());
         }
@@ -392,7 +393,7 @@ void Server::handlePeerThread(PeerInfo *peer_info) {
       } else if (pkt.type == t_ELECTION) {
         this->electionManager->handleCommand(received_message);
 
-      } else if (pkt.type == t_GET_LEADER) { // LEADER_IS <IP> <PORT>
+      } else if (pkt.type == t_LEADER) { // LEADER_IS <IP> <PORT>
         std::string ip;
         int port;
         std::istringstream iss(received_message);

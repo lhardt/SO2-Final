@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
   logger_open("logger.log");
   log_info("Hello from CLIENT, SO2-Final!\n");
 
-  if (argc < 3) {
+  if (argc < 4) {
     std::cerr << "Uso: " << argv[0] << " <username> <ip> <port>" << std::endl;
     return -1;
   }

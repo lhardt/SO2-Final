@@ -178,6 +178,7 @@ void NetworkManager::receivePayload(packet &pkt) {
           pkt.length - total_payload_received, 0);
       if (received == -1) {
         delete[] pkt._payload; // Clean up allocated memory
+	pkt._payload = nullptr;
         throw std::runtime_error("Failed to receive packet payload\n");
       }
       total_payload_received += received;

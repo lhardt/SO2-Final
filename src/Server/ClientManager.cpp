@@ -89,7 +89,7 @@ void ClientManager::notifyNewLeader(std::string msg) {
 
 string ClientManager::getUsername() { return this->username; }
 
-void ClientManager::handle_new_push(packet pkt, Device *caller) {
+void ClientManager::handle_new_push(packet& pkt, Device *caller) {
   std::string content = pkt._payload;
   for (auto device : this->devices) {
     if (device != caller)
