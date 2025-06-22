@@ -400,6 +400,11 @@ std::string NetworkManager::getPeerIP() {
     throw std::runtime_error("Failed to convert IP address to string");
   }
 
+  if (std::string(ip_str) == "127.0.0.1") {
+    std::cout << "USANDO IP LOCAL " << NetworkManager::getLocalIp() << std::endl;
+    return NetworkManager::getLocalIp();
+  }
+
   return std::string(ip_str);
 }
 
