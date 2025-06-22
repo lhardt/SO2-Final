@@ -10,8 +10,9 @@ ElectionManager::ElectionManager(Server *server) {
 
 void ElectionManager::startElection() {
 
-  std::string command = "ELECTION " + server->getLocalIP() + " " + std::to_string(server->getPort());
-  if (next_peer == this->server->getLocalIP() + ":" + std::to_string(this->server->getPort())) {
+  std::string my_ip_info = server->getLocalIP() + " " + std::to_string(server->getPort());
+  if (next_peer == server->getLocalIP() + " " + std::to_string(server->getPort())
+    ||next_peer == server->getLocalIP() + ":" + std::to_string(server->getPort())   ) {
     log_info("Já sou o líder, não preciso iniciar uma eleição");
     this->server->turnLeader();
     return;
@@ -21,7 +22,7 @@ void ElectionManager::startElection() {
     log_error("Não foi possível encontrar o próximo peer: %s", next_peer.c_str());
     return;
   }
-  next_peer_manager->sendPacket(CMD, 0, std::vector<char>(command.begin(), command.end()));
+  next_peer_manager->sendPacket(t_ELECTION, 0, my_ip_info);
 }
 
 int ElectionManager::ipToInt(const std::string &ip) {
@@ -45,13 +46,7 @@ void ElectionManager::setNextPeer(const std::string &peer) {
 void ElectionManager::UpdateNextPeer(const std::string peer_list) {
   std::istringstream iss(peer_list);
   std::string peer_info;
-  std::vector<std::string> peers;
-
-  while (std::getline(iss, peer_info, ';')) {
-    if (!peer_info.empty()) {
-      peers.push_back(peer_info);
-    }
-  }
+  std::vector<std::string> peers = packet_content_to_list(peer_list);
 
   if (peers.empty()) {
     log_error("Lista de peers vazia recebida");
@@ -74,11 +69,9 @@ void ElectionManager::UpdateNextPeer(const std::string peer_list) {
 void ElectionManager::handleCommand(std::string &command) {
   // retira o "ELECTION " do começo
   log_info("Recebendo comando de eleição: %s", command.c_str());
-  command = command.substr(9);
   std::istringstream iss(command);
   std::string ip;
   int port;
-
   iss >> ip >> port;
   if (ip == server->getLocalIP() && port == server->getPort()) {
     log_info("NOVO LIDER ELEITO");
@@ -86,9 +79,7 @@ void ElectionManager::handleCommand(std::string &command) {
   } else {
     if (port > server->getPort()) {
       // reenvio a eleicao para o next_peer
-      this->server->getPeerConnection(next_peer)->sendPacket(CMD, 0, "ELECTION " + ip + " " + std::to_string(port));
+      this->server->getPeerConnection(next_peer)->sendPacket(t_ELECTION,0, ip + " " + std::to_string(port));
     }
   }
-
-  return;
 }

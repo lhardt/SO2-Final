@@ -21,24 +21,24 @@ public:
   ClientManager(State State, string username);
   string getUsername();
   void handle_new_connection(int socket);
-  void handle_new_push(string command, Device *caller);
+  void handle_new_push(packet pkt, Device *caller);
   void removeDevice(Device *device);
   std::string getIp();
   int getPort();
   void add_new_backup(NetworkManager *peer_manager);
   void receivePushsOn(NetworkManager *network_manager);
   void setNetworkManager(NetworkManager *network_manager);
-  void notify(std::string msg);
+  void notifyNewLeader(std::string msg);
   void add_listen_adress(std::string listen_adress);
 
 private:
   std::vector<std::string> listen_adreesses;
   vector<Device *> devices;
-  FileManager *file_manager;
-  NetworkManager *network_manager;
+  FileManager *file_manager = nullptr;
+  NetworkManager *network_manager = nullptr;
   vector<NetworkManager *> backup_peers; // Lista de backups
   int max_devices;
-  Server *server; // Referência ao servidor
+  Server *server = nullptr; // Referência ao servidor
   string username;
   std::mutex device_mutex; // Mutex para proteger o acesso à lista de dispositivos
   State state;
