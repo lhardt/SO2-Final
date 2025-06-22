@@ -503,7 +503,7 @@ int connect_to_socket(std::string ip, int port) {
     return -1;
   }
 
-  int retries = 0, retry_time_ms = 1000, max_retries = 150;
+  // int retries = 0, retry_time_ms = 1000, max_retries = 150;
   // ; // 1  segundo cada, 2.5 min.
   // while (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
   //   int err = errno;

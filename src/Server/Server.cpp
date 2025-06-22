@@ -84,8 +84,7 @@ Server::Server(State state, int running_port, std::string ip, int port) {
     log_info("Conectando ao peer: %s:%d", peer_ip.c_str(), peer_port);
     peer_connections.push_back(peer);
     int res = peer_network_manager->connectTo(peer_ip, peer_port);
-    std::string peer_msg = this->ip + ":" + std::to_string(this->port);
-    peer_network_manager->sendPacket(t_PEER, 0, std::vector<char>(peer_msg.begin(), peer_msg.end()));
+    peer_network_manager->sendPacket(t_PEER, 0, this->ip + ":" + std::to_string(this->port));
     if (res) {
       log_info("Conexão com o peer %s:%d estabelecida", peer_ip.c_str(), peer_port);
       std::thread peer_thread(&Server::handlePeerThread, this, peer);

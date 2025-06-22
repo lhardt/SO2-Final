@@ -70,7 +70,7 @@ void Device::commandThread() { // thread se comporta recebendo comandos do
         if (fim.empty()) {
           fim = "NAO HÁ ARQUIVOS";
         }
-        command_manager->sendPacket(t_DATA, 1, vector<char>(fim.begin(), fim.end()));
+        command_manager->sendPacket(t_DATA, 1, fim);
         command_manager->sendPacket(t_END_OF_FILE, 1);
       } else {
         log_error("Comando desconhecido recebido do cliente: %d", pkt.type);
@@ -247,7 +247,7 @@ void Device::buildFile(std::string &file_name) {
     packet pkt_received = file_watcher_receiver->receivePacket();
     log_info("Recebido do dispositivo pacote de SEQ: %d", pkt_received.seqn);
 
-    if (std::string(pkt_received._payload, pkt_received.length) == "END_OF_FILE") {
+    if (pkt_received.type == t_END_OF_FILE) {
       stop = true;
       break;
     }
