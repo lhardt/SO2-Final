@@ -62,14 +62,12 @@ Server::Server(State state, int running_port, std::string ip, int port) {
 
   std::string peers_str(pkt._payload);
   log_info("Valor de peers_str: %s", peers_str.c_str());
-  std::istringstream iss(peers_str);
   vector<std::string> peer_info_list = packet_content_to_list(peers_str);
   for (std::string peer_info : peer_info_list) {
     if (peer_info.empty()) {
       log_warn("Encontrado peer_info vazio, pulando...");
       continue; // ignora strings vazias
     }
-    peer_info_list.push_back(peer_info);
     size_t colon_pos = peer_info.find(':');
     if (colon_pos == std::string::npos) {
       log_error("Peer info inválido: %s", peer_info.c_str());
