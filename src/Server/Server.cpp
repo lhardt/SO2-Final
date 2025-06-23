@@ -435,6 +435,7 @@ void Server::handlePeerThread(PeerInfo *peer_info) {
 
       } else if (command == "LEADER_IS") { // LEADER_IS <IP> <PORT>
         // tira o LEADER IS do começo
+        this->electionManager->resolveElection();
         std::string leader_info = received_message.substr(received_message.find(' ') + 1);
         std::string ip;
         int port;

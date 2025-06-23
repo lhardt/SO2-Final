@@ -9,6 +9,7 @@ ElectionManager::ElectionManager(Server *server) {
 }
 
 void ElectionManager::startElection() {
+  this->participating_in_election = true;
 
   std::string command = "ELECTION " + server->getLocalIP() + " " + std::to_string(server->getPort());
   if (next_peer == this->server->getLocalIP() + ":" + std::to_string(this->server->getPort())) {
@@ -87,8 +88,27 @@ void ElectionManager::handleCommand(std::string &command) {
     if (port > server->getPort()) {
       // reenvio a eleicao para o next_peer
       this->server->getPeerConnection(next_peer)->sendPacket(CMD, 0, "ELECTION " + ip + " " + std::to_string(port));
+    } else {
+      if (port < server->getPort() && !participating_in_election) {
+        this->participating_in_election = true;
+        // substitui o ip e port do comando para o ip e port do servidor
+        log_info("Servidor %s:%d é candidato a líder", ip.c_str(), port);
+        this->server->getPeerConnection(next_peer)->sendPacket(CMD, 0, "ELECTION " + server->getLocalIP() + " " + std::to_string(server->getPort()));
+      } else {
+        // nao repassa se ja estiver participando
+      }
     }
   }
 
   return;
+}
+
+void ElectionManager::resolveElection() {
+  log_info("Resolvendo eleição");
+  if (participating_in_election) {
+    participating_in_election = false;
+    log_info("Eleição resolvida, não participando mais");
+  } else {
+    log_info("Não estava participando de nenhuma eleição");
+  }
 }
